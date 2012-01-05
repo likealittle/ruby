@@ -51,7 +51,7 @@ def run
   raise "Error: #{res}" if res != ""
 end
 
-`mkdir gen &2>1`
+`mkdir -p #{PATH} &2>1`
 
 generate_same_dir
 
