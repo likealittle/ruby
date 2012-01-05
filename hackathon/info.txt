@@ -1,0 +1,73 @@
+== Introduction
+
+Ruby is a reasonably popular high level programming language of choice for many startups. Ruby uses the syntax:
+
+require "a.rb"
+
+similar to the C statement.
+
+#include "a.c"
+
+Basically the interpreter runs through the source code and continues interpreting the a.rb file. Since ruby is an interpreted language there is no compilation and the require statement actually runs the sources within the new file.
+
+More reading: http://ruby.about.com/od/rubyfeatures/a/require.htm
+
+== Problem Summary
+
+The implementation of require code in ruby seems to be flawed, and from my quick glance of the source, it seems to be doing O(n^2) or more operations, where n is the number of required files. (I might be wrong though). Can you fix it?
+
+== Getting started
+
+0. Install the required libraries.
+[1] git
+[2] A good C compiler. (either gcc or darwin)
+
+1. Clone the source files.
+
+$ git clone git@github.com:likealittle/ruby.git
+
+Just so you know, I've set the sources at ruby version "1.9.2 patch level 290"
+
+2. Compile and install
+$ cd ruby
+$ autoconf
+$ ./configure
+$ make -j4
+$ make install -j4
+
+After the install:
+$ /usr/local/bin/ruby --version
+should say:
+ruby 1.9.2p290
+
+Checkout README follow the compile and install instructions, if you run into trouble.
+
+== Testing
+
+1. Basic ruby correctness tests.
+make test -j4
+
+Make sure everything passes before you proceed.
+
+2. Require slowness tests.
+
+The task at hand is to speed up the ruby requires. To do that I've written a couple of basic tests to demonstrate the problem precisely. The tests are expected to pass, if you manage to fix the ruby kernel correctly.
+
+2.1) ./ruby hackathon/test/file_required_check.rb 
+
+When requiring 10K files, ruby slows down a lot. Ruby before loading a file wants to make sure it's not already require'd. To do that it loops through a variable called $" and checks if this file is require'd. Read the test file, to understand a more detailed explanation.
+
+If you fix this operation's complexity to O(1) or O(log(n)) this test must pass easily.
+
+2.2) ./ruby hackathon/test/too_many_require_dirs.rb
+
+When require 1K files from 1K diff directories, ruby slows down a lot. This happens because, ruby has a variable called $: which stores the ordered priority of directories to search for the required file. Ruby kernel currently loops through this array and checks one by one. Read the test file, to understand a more detailed explanation.
+
+If you fix this operation's complexity to O(1) or O(log(n)) by using a clever trie, then this test will pass. Make sure the trie handles the priority ordering though.
+
+== Coding standards
+
+We don't expect you to follow coding conventions. But here's a link anyways:
+http://www.ruby-lang.org/en/community/ruby-core/#coding-standards
+
+If you follow them and commit the patch to the ruby kernel, you become a ruby core contributor, which is a significant feat, and adds immense value to your resume.
