@@ -73,6 +73,25 @@ When require 1K files from 1K diff directories, ruby slows down a lot. This happ
 
 If you fix this operation's complexity to O(1) or O(log(n)) by using a clever trie, then this test will pass. Make sure the trie handles the priority ordering though.
 
+== Directory trie
+
+Kaushik: is it that every file in the directory is in the trie?
+
+me: I think it requires some clever tricks, like lazily opening the trie nodes only when a traversal requires opening it and invalidating the least nodes, when a the $: is modified
+(I might be wrong. This is what I understood from my quick glance of the code.)
+
+Kaushik: my doubt is whether we store the list of all files in the trie ?
+
+me: Yes, the trie structure is meant to store the list of all files. But you don't populate it right away.. let me explain:
+
+Kaushik: i got that it has to be according to the priority
+
+me: when someone adds '/lib/a' to the require directory, you don't crawl recursively from the 'a' directory, because that might end up taking tons of time. what you want to do is, list the contents of the 'a' directory and add the first level to the nodes in the trie. (merging has to be clever about priorities yes).
+
+Now, when someone requires 'dir/b' then when traversing the first level node 'dir', you might have to open up /lib/a/dir if the priority ordering demands opening it. Makes sense?
+
+Kaushik: yeah
+
 == Coding standards
 
 We don't expect you to follow coding conventions. But here's a link anyways:
