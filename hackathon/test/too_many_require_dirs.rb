@@ -14,60 +14,68 @@
 # $: << "sample_dir" # ask ruby to look at the dir.
 # require "sample_file.rb" # works.
 
-PATH = "./hackathon/test/gen"
+class TooManyRequireDirsTest
+  PATH = "./hackathon/test/gen"
+  
+  def main
+    `mkdir -p #{PATH} &2>1`
 
-def write_file(path, contents)
-  fh = File.new(path, 'w')
-  fh.write(contents)
-  fh.close
-end
+    generate_same_dir
 
-def generate_same_dir
-  main = ""
-  1000.times do |i|
-    f = "%05d" % i
-    main += "require '#{PATH}/#{f}'\n"
+    start = Time.now
+    run
+    same_dir = Time.now - start
+    puts "Requiring 1K files in the same directory ran in #{same_dir} seconds."
+
+    generate_diff_dirs
+
+    start = Time.now
+    run
+    diff_dirs = Time.now - start
+    puts "Requiring 1K files from 1K diff require dirs ran in #{diff_dirs} seconds."
+
+    if diff_dirs > 2*same_dir
+      puts "FAILED: You have not successfully patched ruby yet. 1K directory requires take too long."
+    else
+      puts "PASSED."
+    end
   end
 
-  write_file("#{PATH}/main.rb",  main)
-end
 
-def generate_diff_dirs
-  main = ""
-  1000.times do |i|
-    d = "d%05d" % i
-    f = "%05d" % i
-    Dir.mkdir(File.expand_path("#{PATH}/#{d}"), 0700) rescue nil
-    write_file("#{PATH}/#{d}/#{f}.rb", "")
-    main += "$: << '#{PATH}/#{d}'\n"
-    main += "require '#{f}'\n"
+  def write_file(path, contents)
+    fh = File.new(path, 'w')
+    fh.write(contents)
+    fh.close
   end
 
-  write_file("#{PATH}/main.rb",  main)
+  def generate_same_dir
+    main = ""
+    1000.times do |i|
+      f = "%05d" % i
+      main += "require '#{PATH}/#{f}'\n"
+    end
+
+    write_file("#{PATH}/main.rb",  main)
+  end
+
+  def generate_diff_dirs
+    main = ""
+    1000.times do |i|
+      d = "d%05d" % i
+      f = "%05d" % i
+      Dir.mkdir(File.expand_path("#{PATH}/#{d}"), 0700) rescue nil
+      write_file("#{PATH}/#{d}/#{f}.rb", "")
+      main += "$: << '#{PATH}/#{d}'\n"
+      main += "require '#{f}'\n"
+    end
+
+    write_file("#{PATH}/main.rb",  main)
+  end
+
+  def run
+    res = `./ruby #{PATH}/main.rb &2>1`
+    raise "Error: #{res}" if res != ""
+  end
 end
 
-def run
-  res = `./ruby #{PATH}/main.rb &2>1`
-  raise "Error: #{res}" if res != ""
-end
-
-`mkdir -p #{PATH} &2>1`
-
-generate_same_dir
-
-start = Time.now
-run
-same_dir = Time.now - start
-puts "Requiring 1K files in the same directory ran in #{same_dir} seconds."
-
-generate_diff_dirs
-start = Time.now
-run
-diff_dirs = Time.now - start
-puts "Requiring 1K files from 1K diff require dirs ran in #{diff_dirs} seconds."
-
-if diff_dirs > 2*same_dir
-  puts "FAILED: You have not successfully patched ruby yet. 1K directory requires take too long."
-else
-  puts "PASSED."
-end
+TooManyRequireDirsTest.new.main
