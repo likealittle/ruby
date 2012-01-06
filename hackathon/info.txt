@@ -12,9 +12,17 @@ Basically the interpreter runs through the source code and continues interpretin
 
 More reading: http://ruby.about.com/od/rubyfeatures/a/require.htm
 
+The patch you are about to make is going to solve the most important performance problem of ruby as a language. It'd be a great addition to your resume if your patch gets accepted by the ruby community.
+
 == Problem Summary
 
 The implementation of require code in ruby seems to be flawed, and from my quick glance of the source, it seems to be doing O(n^2) or more operations, where n is the number of required files. (I might be wrong though). Can you fix it?
+
+== Setup from my end
+
+1. Make github accounts and send me the handles. That way I can add you to the repository.
+2. Since it's a remote team, to make it more fun, can you guys create twitter handles for each of you participating and send it to me? This could be a private throw away twitter that you make for this contest. Every hour or so, if you guys update what's the problem you are trying to tackle, that might give a good idea of the work that's going on. You can work as a team and allot work amongst yourself.
+Tip: If you need an extra throw-away email for this throw-away twitter account you can do something like myprasanna+throw@gmail.com replacing myprasanna with your own mail. i.e, gmail ignores the chars after the '+' sign and twitter does not know that.
 
 == Getting started
 
