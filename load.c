@@ -26,6 +26,12 @@ static const char *const loadable_ext[] = {
     0
 };
 
+long long total_time = 0;
+#include<stdio.h>
+#include<sys/time.h>
+#define TIME_START struct timeval time;gettimeofday(&time,NULL);long long start=time.tv_sec*1000000LL + time.tv_usec;
+#define TIME_END gettimeofday(&time, NULL);total_time += (time.tv_sec*1000000LL+time.tv_usec-start); printf("Time so far: %lld\n", total_time);
+
 VALUE
 rb_get_load_path(void)
 {
@@ -118,8 +124,9 @@ loaded_feature_path_i(st_data_t v, st_data_t b, st_data_t f)
 }
 
 static int
-rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const char **fn)
+rb_feature_p_internal(const char *feature, const char *ext, int rb, int expanded, const char **fn)
 {
+    
     VALUE v, features, p, load_path = 0;
     const char *f, *e;
     long i, len, elen, n;
@@ -205,6 +212,16 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
 	}
     }
     return 0;
+}
+
+
+static int
+rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const char **fn) 
+{
+    TIME_START
+    int res = rb_feature_p_internal(feature, ext, rb, expanded, fn);
+    TIME_END
+    return res;
 }
 
 int
