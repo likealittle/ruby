@@ -144,6 +144,8 @@ typedef struct TrieNode {
     st_table* fileToAbsPath;
 }TrieNode;
 
+TrieNode* main_root;
+
 void recompute(TrieNode* root) {
     root->dirs = st_init_strtable();
     root->fileToAbsPath = st_init_strtable();
@@ -156,6 +158,7 @@ void recompute(TrieNode* root) {
 
 	VALUE p = RARRAY_PTR(load_path)[i];
 	const char *s = StringValuePtr(p);
+	printf("print -> %s\n",s);
 	long n = RSTRING_LEN(p);
 
 	//ls for the current load path 's'
@@ -171,23 +174,27 @@ void recompute(TrieNode* root) {
 
 	for(j=0; j<data.gl_pathc; j++) {
 	    char * currentObj = data.gl_pathv[j];
+	    printf("processing.... %s\n",currentObj);
 	    status = stat(currentObj, &stat_buff);
 	    if(S_ISREG(stat_buff.st_mode)) {
 		//FILE
+		puts("FILE!!!");
 		char * fileName = GetFileName(currentObj);
-		int found = st_lookup(root->fileToAbsPath, fileName, &buff);
+		#define _sd st_data_t
+		int found = st_lookup(root->fileToAbsPath, (_sd)fileName, &buff);
 		if(!found)
-		    st_add_direct(root->fileToAbsPath, fileName, currentObj);
+		    st_add_direct(root->fileToAbsPath, (_sd)fileName, (st_data_t)currentObj);
 	    }
 	    else if(S_ISDIR(stat_buff.st_mode)) {
 		//DIRECTORY
+		puts("DIRECTORY!!!");
 		char * dirName = GetFileName(currentObj);
-		int found = st_lookup(root->dirs, dirName, &buff);
+		int found = st_lookup(root->dirs, (_sd)dirName, &buff);
 		TrieNode* child;
 		if(!found) {
 		    child = (TrieNode*)malloc(sizeof(TrieNode));
 		    child->expired = TRUE;
-		    st_add_direct(root->dirs, dirName, (st_data_t)child);
+		    st_add_direct(root->dirs, (_sd)dirName, (st_data_t)child);
 		}
 		else {
 		    child = (TrieNode*)buff;
@@ -321,6 +328,10 @@ static int
 rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const char **fn)
 {
     TIME_START
+    if(!main_root) {
+	main_root = (TrieNode*)malloc(sizeof(TrieNode));
+	recompute(main_root);
+    }
     int res = rb_feature_p_internal(feature, ext, rb, expanded, fn);
     TIME_END
     return res;
@@ -855,7 +866,6 @@ Init_load()
     rb_vm_t *vm = GET_VM();
     static const char var_load_path[] = "$:";
     ID id_load_path = rb_intern2(var_load_path, sizeof(var_load_path)-1);
-
     rb_define_hooked_variable(var_load_path, (VALUE*)vm, load_path_getter, rb_gvar_readonly_setter);
     rb_alias_variable(rb_intern("$-I"), id_load_path);
     rb_alias_variable(rb_intern("$LOAD_PATH"), id_load_path);
