@@ -126,7 +126,7 @@ loaded_feature_path_i(st_data_t v, st_data_t b, st_data_t f)
 static int
 rb_feature_p_internal(const char *feature, const char *ext, int rb, int expanded, const char **fn)
 {
-    
+
     VALUE v, features, p, load_path = 0;
     const char *f, *e;
     long i, len, elen, n;
@@ -216,7 +216,7 @@ rb_feature_p_internal(const char *feature, const char *ext, int rb, int expanded
 
 
 static int
-rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const char **fn) 
+rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const char **fn)
 {
     TIME_START
     int res = rb_feature_p_internal(feature, ext, rb, expanded, fn);

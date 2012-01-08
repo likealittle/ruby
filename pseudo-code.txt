@@ -1,0 +1,40 @@
+struct TrieNode {
+    bool expired;
+    vector<string> load_paths;
+    map<string, TrieNode*> edges; // folders.
+    map<string, string> FileToAbsolutePath;
+};
+
+// file = file.split("/");
+
+FindPathToFile(vector<string> file, TrieNode* root) {
+    if (root->expired) root->recompute();
+    // Pure filename. No more slashes.
+    if (file.length() == 1) {
+        return FileToAbsolutePath[file[0]];
+    }
+    // Need to traverse directories.
+    TrieNode* edge = root[file[0]];
+    if (!edge) return false;
+    vector<string> nFile(file.begin()+1,file.end());
+    return FindPathToFile(nFile, edge);
+}
+
+TrieNode::recompute() {
+    edges.clear(); FileToAbsolutePath.clear();
+    for (int i = 0; i < load_paths.size(); ++ i) {
+        string p = load_paths[i];
+        vector<string> files, dirs; // list files and dirs in p.
+        for (int f = 0; f < files.length(); ++ f) {
+            if (! FileToAbsolutePath[files[f]])
+                FileToAbsolutePath[files[f]] = p + "/" + files[f];
+        }
+        for (int d = 0; d < dirs.length(); ++ d) {
+            TrieNode *child = edges[dirs[d]];
+            if (!child) child = edges[dirs[d]] = new TrieNode();
+            child->expired = true;
+            child->load_paths.push_back(dirs[d]);
+        }
+    }
+}
+
