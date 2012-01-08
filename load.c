@@ -145,19 +145,43 @@ rb_feature_p_internal(const char *feature, const char *ext, int rb, int expanded
 	elen = 0;
 	type = 0;
     }
+    //len denotes length of current "feature" - "extension's length"
+
     features = get_loaded_features();
-    for (i = 0; i < RARRAY_LEN(features); ++i) {
-	v = RARRAY_PTR(features)[i];
-	f = StringValuePtr(v);
-	if ((n = RSTRING_LEN(v)) < len) continue;
+    //TODO Change From Here
+    for (i = 0; i < RARRAY_LEN(features); ++i) { //iterating through $"
+	v = RARRAY_PTR(features)[i];             //Current file in $"
+	f = StringValuePtr(v);                   //f is absolute path of the current file in $"
+	if ((n = RSTRING_LEN(v)) < len) continue;//n is strlen(f)
+	//Check if f is a prefix of feature {will have a chance to match only
+	//if feautre is in its absoulte path form}
 	if (strncmp(f, feature, len) != 0) {
+	    //if it didn't match then will proceed to line HASH_STRUCTURE
+	    //probably setting up of a lock in loading_tbl
 	    if (expanded) continue;
+	    //if its not expanded will go through one more iteration through $:
+	    //to get its absolute path
 	    if (!load_path) load_path = rb_get_expanded_load_path();
-	    if (!(p = loaded_feature_path(f, n, feature, len, type, load_path)))
+	    //if not present in load_path continue
+	    //checking if feature the some other form of representation of same f
+	    if (!(p = loaded_feature_path(f, n, feature, len, type, load_path))) {
+		//structure of loaded_feature
+		//for some l_p in `$:` :
+		//    if l_p+"/"+feature == f:
+		//          return l_p
+		//return 0;
 		continue;
+	    }
+	    //now we know that
+	    //successful in getting absoulte path hence expanded=1
 	    expanded = 1;
+	    //p is an array ptr to the matching load_path for feature
 	    f += RSTRING_LEN(p) + 1;
+	    //f basically now contails /usr/lib/ruby.rb -> ruby.rb
 	}
+	//TILL HERE
+	//here we know that feature is already in the $" and f is the same
+	//e is either ".rb" 'r'| ".so" 's'| something else
 	if (!*(e = f + len)) {
 	    if (ext) continue;
 	    return 'u';
@@ -170,6 +194,8 @@ rb_feature_p_internal(const char *feature, const char *ext, int rb, int expanded
 	    return 'r';
 	}
     }
+
+    //LABEL = HASH_STRUCTURE
     loading_tbl = get_loading_table();
     if (loading_tbl) {
 	f = 0;
