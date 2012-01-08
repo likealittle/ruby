@@ -1,4 +1,4 @@
-/*
+ /*
  * load methods from eval.c
  */
 
@@ -122,6 +122,56 @@ loaded_feature_path_i(st_data_t v, st_data_t b, st_data_t f)
     fp->result = s;
     return ST_STOP;
 }
+#include <sys/stat.h>
+#include <glob.h>
+#include <errno.h>
+
+//get file name from absolute path
+char *GetFileName(char *path)
+{
+    char *filename = strrchr(path, '\\');
+    if (filename == NULL)
+	filename = path;
+    else
+	filename++;
+    return filename;
+}
+
+typedef struct TrieNode {
+    VALUE loadpath;
+    int expired;
+    st_table* dirs;
+    st_table* fileToAbsPath;
+}TrieNode;
+
+void recompute(TrieNode* root) {
+    root->dirs = st_init_strtable();
+    root->fileToAbsPath = st_init_strtable();
+    VALUE load_path = rb_get_expanded_load_path();
+    int i;
+    glob_t data;
+    struct stat stat_buff;
+    int status;
+    for (i = 0; i < RARRAY_LEN(load_path); ++i) {
+	VALUE p = RARRAY_PTR(load_path)[i];
+	const char *s = StringValuePtr(p);
+	long n = RSTRING_LEN(p);
+	char * ls = s;
+	strcat(ls,"/*");
+	glob(ls,0,NULL,&data);
+	//ERROR HANDLING TODO
+	int j;
+	for(j=0; j<data.gl_pathc; j++) {
+	    char * currentObj = data.gl_pathv[j];
+	    status = stat(currentObj, &stat_buff);
+	    if(S_ISREG(stat_buff.st_mode)) {
+	    }
+	    else if(S_ISDIR(stat_buff.st_mode)) {
+	    }
+	}
+    }
+}
+
 
 static int
 rb_feature_p_internal(const char *feature, const char *ext, int rb, int expanded, const char **fn)
