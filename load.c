@@ -153,20 +153,46 @@ void recompute(TrieNode* root) {
     struct stat stat_buff;
     int status;
     for (i = 0; i < RARRAY_LEN(load_path); ++i) {
+
 	VALUE p = RARRAY_PTR(load_path)[i];
 	const char *s = StringValuePtr(p);
 	long n = RSTRING_LEN(p);
-	char * ls = s;
+
+	//ls for the current load path 's'
+	char ls[10000];
+	strcpy(ls,s);
 	strcat(ls,"/*");
 	glob(ls,0,NULL,&data);
+
 	//ERROR HANDLING TODO
-	int j;
+
+	unsigned int j;
+	st_data_t buff;
+
 	for(j=0; j<data.gl_pathc; j++) {
 	    char * currentObj = data.gl_pathv[j];
 	    status = stat(currentObj, &stat_buff);
 	    if(S_ISREG(stat_buff.st_mode)) {
+		//FILE
+		char * fileName = GetFileName(currentObj);
+		int found = st_lookup(root->fileToAbsPath, fileName, &buff);
+		if(!found)
+		    st_add_direct(root->fileToAbsPath, fileName, currentObj);
 	    }
 	    else if(S_ISDIR(stat_buff.st_mode)) {
+		//DIRECTORY
+		char * dirName = GetFileName(currentObj);
+		int found = st_lookup(root->dirs, dirName, &buff);
+		TrieNode* child;
+		if(!found) {
+		    child = (TrieNode*)malloc(sizeof(TrieNode));
+		    child->expired = TRUE;
+		    st_add_direct(root->dirs, dirName, (st_data_t)child);
+		}
+		else {
+		    child = (TrieNode*)buff;
+		    child->expired = TRUE;
+		}
 	    }
 	}
     }
