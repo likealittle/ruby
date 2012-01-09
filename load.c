@@ -146,6 +146,28 @@ typedef struct TrieNode {
 
 TrieNode* main_root;
 
+char* findPathToFile(TrieNode* root, char** fileSplit, int len, char* tillNow, int curIdx=0) {
+    if(root->expired == 1)recompute();
+
+    TrieNode* child;
+    char * fname = fileSplit[curIdx];
+    strcat(tillNow,"/");
+    strcat(tillNow,fname);
+    st_data_t buff;
+
+    if(curIdx+1 == len) {
+	int found = st_lookup(root->fileToAbsPath, (st_data_t)fname, &buff);
+	if(found) {
+	    return tillNow;
+	}
+	return NULL;
+    }
+
+    int found = st_lookup(root->fileToAbsPath, (st_data_t)fname, &buff);
+    //assign child as buff [TODO not getting how to]
+    return findPathToFile(child,fileSplit,len,tillNow,curIdx+1);
+}
+
 void recompute(TrieNode* root) {
     root->dirs = st_init_strtable();
     root->fileToAbsPath = st_init_strtable();
