@@ -75,6 +75,8 @@ If you fix this operation's complexity to O(1) or O(log(n)) by using a clever tr
 
 == Directory trie
 
+Checkout the pseudo code of the trie in [pseudo_code.txt]
+
 Kaushik: is it that every file in the directory is in the trie?
 
 me: I think it requires some clever tricks, like lazily opening the trie nodes only when a traversal requires opening it and invalidating the least nodes, when a the $: is modified
