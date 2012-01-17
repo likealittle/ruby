@@ -1,0 +1,121 @@
+Assumptions : 
+1. We've assumed that there are not a lot of different files with the same first name in load path. 
+This is probably true - refer to this epic 26 line bug fix: https://github.com/ruby/ruby/commit/9ce69e7cef1272c86a93eeb9a1888fe6d2a94704#load.c
+
+2. We've assumed that most of $: change operations are either append or delete (from anywhere) i.e most of $: change operations
+don't modify relative priorities of other load directories.
+
+3. We assume that not very often it would happen that a require statement returns false.
+  i.e user gives url of a file that doesnt' exist.
+  
+4. We assume that not very often directory structure modifications are done particularly
+ to those directories which are listed in $: e.g we assume that not often, files would be created/deleted
+ on the fly in lib/
+  
+
+
+
+We propose the following solution which brings down the asymptotic time taken to "require" files 
+significantly, and  incurs extra cost only on scenarios assumed to be rare
+
+At the heart there are 4 datastructures :
+
+  1) set<absolute_paths> loadedFiles : A set of files already loaded by ruby. 
+	Using this set it can be found in logarithmic time, if any given absolute url
+	has already been included or not.
+	
+  2) struct loadDirectory
+      {	
+	  int priority;
+	  bool dead;
+      }
+      
+  3) map<absolute_path, loadDirectory* > loadPaths : Given any absolute path, the 
+	unique loadDirectory struct related to it, if any can be found out in logarithmic time.
+	
+  4) map<fname, vector<absolute_paths> > loadCandidates : Given a file f, all the loadpaths where f is present
+	can be found in time proportional to log( f ) + | lp | where | lp | denotes number of load directories
+	which contain <i>some<i> file/directory called f. 
+	
+	
+	
+Algorithm : 
+
+1) require( file ) : 
+    
+    ap = getAbsolutePath( file )
+    if(ap == null)
+	our DS indicate absence of this file, but directory structure might have 
+	changed since our DS were last updated. Lets do a brute force check and 
+	update our DS in process
+	
+    else
+	if( ap in loadedFiles)
+	    We've already loaded this file before. Nothing to bake
+	else
+	    Load it for real and mark it as loaded in our DS
+	    
+2) getAbsolutePath( a[/b/c....] )
+    
+    vector<absolute_paths> candidates = loadCandidates[ a ]
+    foreach path in candidates
+      loadDirectory ld = loadPaths[ path ]
+      if( ld is not dead and is present in file system still and contains a)
+	  if( ld contains whole of the path b/c/... )
+	     mark it as valid candidate
+    
+    return the valid candidate with highest priority, null if none
+    
+    
+    
+3) addToLoadPath( lp )		// lp is absolute path already
+    
+    if( loadPaths doesn't have an entry for lp)
+	create a new entry with lowest priority, mark it living    
+	for each file/dir f, 1 level under it
+	    loadCandidates.add( f, lp )
+	    
+    if( loadPaths has an entry but is dead )
+	mark it living
+
+
+    if( this lp was not added to end of $:)
+	normalizePriority(index)
+	
+	
+4) removeFromLoadPath( lp )
+    if( loadPaths doesn't have an entry for lp)
+	nothing to do
+	    
+    if( loadPaths has an entry but is dead )
+	nothing to do
+
+    if( loadPaths has an entry but is living)
+	mark it dead
+	
+	
+5) normalizePriority(begin)	// meaningful if one changes $: in middle to change order of dirs
+  
+  for each dir in $: starting from pos begin
+      loadDirectory[dir].priority = new_priority
+      
+      
+      
+Notes : 
+1. We've used hashed sets/maps through out so the theoretical log factor is not really there, just a constant.
+
+2. When a load directory is deleted, we're not removing its files from our DS but simply marking them dead. 
+This is for performance gains as well as implementation comfort. We could do multiple things instead : 
+    a) Delete all the entries immediately -> in this case flag 'dead' has no use
+    b) Don't delete them immediately, but whenever number of dead files increases beyond a threshold, delete them
+       in a batch
+       
+3. When a change is made in middle of $:, priority of a lot of load paths changes. So normalizePriority might be a costly
+   function. We could optimize here as well - by doing only batch updates after K number of such operations and in between
+   2 batch updates, priorities are made fractional, just to represent ordering which can be done in O(1)
+   
+4. We're "opening" all files and directories upto level 1 of load directories in $: However many of such files may 
+never be used. In such case, an optimization can be done which closes unfunctional opened dirs/files when their 
+number reaches a particular threshold.
+
+   
