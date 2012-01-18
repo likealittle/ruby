@@ -98,7 +98,7 @@ get_loaded_features(void)
   struct st_table * st;
   st = get_loaded_features_hash();
   long n = st->num_entries;
-  VALUE ary = rb_ary_new(n);
+  VALUE ary = rb_ary_new();
   
   st_foreach(st, push_key, ary);
   VALUE ret = GET_VM()->loaded_features;
