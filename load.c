@@ -106,8 +106,8 @@ get_loaded_features(void)
   //print_str_ary(ary);  
   //printf("DEBUG:LAL: %d %d\n", RARRAY_PTR(ret)[0], RBASIC(ary)->klass);
   
-  return GET_VM()->loaded_features;
-  //return ary;
+  // return GET_VM()->loaded_features;
+  return ary;
 }
 
 static st_table *
@@ -290,9 +290,9 @@ rb_feature_provided(const char *feature, const char **loading)
 static void
 rb_provide_feature(VALUE feature)
 {
-  rb_ary_push(get_loaded_features(), feature);
   //     char * now = RSTRING_PTR(feature);
   //     printf("DEBUG : LAL : %s\n", now);
+  rb_ary_push(GET_VM()->loaded_features, feature);
   //     VALUE vv = rb_usascii_str_new(now, strlen(now));
   //     char * again = RSTRING_PTR(vv);
   //     printf("DEBUG2 : LAL : %s\n", again);
