@@ -1,13 +1,13 @@
 /**********************************************************************
-
-  vm_core.h -
-
-  $Author$
-  created at: 04/01/01 19:41:38 JST
-
-  Copyright (C) 2004-2007 Koichi Sasada
-
-**********************************************************************/
+ * 
+ *  vm_core.h -
+ * 
+ *  $Author$
+ *  created at: 04/01/01 19:41:38 JST
+ * 
+ *  Copyright (C) 2004-2007 Koichi Sasada
+ * 
+ **********************************************************************/
 
 #ifndef RUBY_VM_CORE_H
 #define RUBY_VM_CORE_H
@@ -123,147 +123,147 @@ typedef unsigned long rb_num_t;
 struct iseq_compile_data_ensure_node_stack;
 
 typedef struct rb_compile_option_struct {
-    int inline_const_cache;
-    int peephole_optimization;
-    int tailcall_optimization;
-    int specialized_instruction;
-    int operands_unification;
-    int instructions_unification;
-    int stack_caching;
-    int trace_instruction;
-    int debug_level;
+  int inline_const_cache;
+  int peephole_optimization;
+  int tailcall_optimization;
+  int specialized_instruction;
+  int operands_unification;
+  int instructions_unification;
+  int stack_caching;
+  int trace_instruction;
+  int debug_level;
 } rb_compile_option_t;
 
 struct iseq_inline_cache_entry {
-    VALUE ic_vmstat;
-    VALUE ic_class;
-    union {
-	VALUE value;
-	rb_method_entry_t *method;
-	long index;
-    } ic_value;
+  VALUE ic_vmstat;
+  VALUE ic_class;
+  union {
+    VALUE value;
+    rb_method_entry_t *method;
+    long index;
+  } ic_value;
 };
 
 #if 1
 #define GetCoreDataFromValue(obj, type, ptr) do { \
-    ptr = (type*)DATA_PTR(obj); \
+ptr = (type*)DATA_PTR(obj); \
 } while (0)
 #else
 #define GetCoreDataFromValue(obj, type, ptr) Data_Get_Struct(obj, type, ptr)
 #endif
 
 #define GetISeqPtr(obj, ptr) \
-  GetCoreDataFromValue(obj, rb_iseq_t, ptr)
+GetCoreDataFromValue(obj, rb_iseq_t, ptr)
 
 struct rb_iseq_struct;
 
 struct rb_iseq_struct {
-    /***************/
-    /* static data */
-    /***************/
-
-    VALUE type;          /* instruction sequence type */
-    VALUE name;	         /* String: iseq name */
-    VALUE filename;      /* file information where this sequence from */
-    VALUE filepath;      /* real file path or nil */
-    VALUE *iseq;         /* iseq (insn number and openrads) */
-    VALUE *iseq_encoded; /* encoded iseq */
-    unsigned long iseq_size;
-    VALUE mark_ary;	/* Array: includes operands which should be GC marked */
-    VALUE coverage;     /* coverage array */
-    unsigned short line_no;
-
-    /* insn info, must be freed */
-    struct iseq_insn_info_entry *insn_info_table;
-    size_t insn_info_size;
-
-    ID *local_table;		/* must free */
-    int local_table_size;
-
-    /* method, class frame: sizeof(vars) + 1, block frame: sizeof(vars) */
-    int local_size;
-
-    struct iseq_inline_cache_entry *ic_entries;
-    int ic_size;
-
-    /**
-     * argument information
-     *
-     *  def m(a1, a2, ..., aM,                    # mandatory
-     *        b1=(...), b2=(...), ..., bN=(...),  # optinal
-     *        *c,                                 # rest
-     *        d1, d2, ..., dO,                    # post
-     *        &e)                                 # block
-     * =>
-     *
-     *  argc           = M
-     *  arg_rest       = M+N+1 // or -1 if no rest arg
-     *  arg_opts       = N
-     *  arg_opts_tbl   = [ (N entries) ]
-     *  arg_post_len   = O // 0 if no post arguments
-     *  arg_post_start = M+N+2
-     *  arg_block      = M+N + 1 + O + 1 // -1 if no block arg
-     *  arg_simple     = 0 if not simple arguments.
-     *                 = 1 if no opt, rest, post, block.
-     *                 = 2 if ambiguos block parameter ({|a|}).
-     *  arg_size       = argument size.
-     */
-
-    int argc;
-    int arg_simple;
-    int arg_rest;
-    int arg_block;
-    int arg_opts;
-    int arg_post_len;
-    int arg_post_start;
-    int arg_size;
-    VALUE *arg_opt_table;
-
-    size_t stack_max; /* for stack overflow check */
-
-    /* catch table */
-    struct iseq_catch_table_entry *catch_table;
-    int catch_table_size;
-
-    /* for child iseq */
-    struct rb_iseq_struct *parent_iseq;
-    struct rb_iseq_struct *local_iseq;
-
-    /****************/
-    /* dynamic data */
-    /****************/
-
-    VALUE self;
-    VALUE orig;			/* non-NULL if its data have origin */
-
-    /* block inlining */
-    /*
-     * NODE *node;
-     * void *special_block_builder;
-     * void *cached_special_block_builder;
-     * VALUE cached_special_block;
-     */
-
-    /* klass/module nest information stack (cref) */
-    NODE *cref_stack;
-    VALUE klass;
-
-    /* misc */
-    ID defined_method_id;	/* for define_method */
-
-    /* used at compile time */
-    struct iseq_compile_data *compile_data;
+  /***************/
+  /* static data */
+  /***************/
+  
+  VALUE type;          /* instruction sequence type */
+  VALUE name;          /* String: iseq name */
+  VALUE filename;      /* file information where this sequence from */
+  VALUE filepath;      /* real file path or nil */
+  VALUE *iseq;         /* iseq (insn number and openrads) */
+  VALUE *iseq_encoded; /* encoded iseq */
+  unsigned long iseq_size;
+  VALUE mark_ary; /* Array: includes operands which should be GC marked */
+  VALUE coverage;     /* coverage array */
+  unsigned short line_no;
+  
+  /* insn info, must be freed */
+  struct iseq_insn_info_entry *insn_info_table;
+  size_t insn_info_size;
+  
+  ID *local_table;        /* must free */
+  int local_table_size;
+  
+  /* method, class frame: sizeof(vars) + 1, block frame: sizeof(vars) */
+  int local_size;
+  
+  struct iseq_inline_cache_entry *ic_entries;
+  int ic_size;
+  
+  /**
+   * argument information
+   *
+   *  def m(a1, a2, ..., aM,                    # mandatory
+   *        b1=(...), b2=(...), ..., bN=(...),  # optinal
+   *        *c,                                 # rest
+   *        d1, d2, ..., dO,                    # post
+   *        &e)                                 # block
+   * =>
+   *
+   *  argc           = M
+   *  arg_rest       = M+N+1 // or -1 if no rest arg
+   *  arg_opts       = N
+   *  arg_opts_tbl   = [ (N entries) ]
+   *  arg_post_len   = O // 0 if no post arguments
+   *  arg_post_start = M+N+2
+   *  arg_block      = M+N + 1 + O + 1 // -1 if no block arg
+   *  arg_simple     = 0 if not simple arguments.
+   *                 = 1 if no opt, rest, post, block.
+   *                 = 2 if ambiguos block parameter ({|a|}).
+   *  arg_size       = argument size.
+   */
+  
+  int argc;
+  int arg_simple;
+  int arg_rest;
+  int arg_block;
+  int arg_opts;
+  int arg_post_len;
+  int arg_post_start;
+  int arg_size;
+  VALUE *arg_opt_table;
+  
+  size_t stack_max; /* for stack overflow check */
+  
+  /* catch table */
+  struct iseq_catch_table_entry *catch_table;
+  int catch_table_size;
+  
+  /* for child iseq */
+  struct rb_iseq_struct *parent_iseq;
+  struct rb_iseq_struct *local_iseq;
+  
+  /****************/
+  /* dynamic data */
+  /****************/
+  
+  VALUE self;
+  VALUE orig;         /* non-NULL if its data have origin */
+  
+  /* block inlining */
+  /*
+   * NODE *node;
+   * void *special_block_builder;
+   * void *cached_special_block_builder;
+   * VALUE cached_special_block;
+   */
+  
+  /* klass/module nest information stack (cref) */
+  NODE *cref_stack;
+  VALUE klass;
+  
+  /* misc */
+  ID defined_method_id;   /* for define_method */
+  
+  /* used at compile time */
+  struct iseq_compile_data *compile_data;
 };
 
 enum ruby_special_exceptions {
-    ruby_error_reenter,
-    ruby_error_nomemory,
-    ruby_error_sysstack,
-    ruby_special_error_count
+  ruby_error_reenter,
+  ruby_error_nomemory,
+  ruby_error_sysstack,
+  ruby_special_error_count
 };
 
 #define GetVMPtr(obj, ptr) \
-  GetCoreDataFromValue(obj, rb_vm_t, ptr)
+GetCoreDataFromValue(obj, rb_vm_t, ptr)
 
 #if defined(ENABLE_VM_OBJSPACE) && ENABLE_VM_OBJSPACE
 struct rb_objspace;
@@ -271,215 +271,216 @@ void rb_objspace_free(struct rb_objspace *);
 #endif
 
 typedef struct rb_vm_struct {
-    VALUE self;
-
-    rb_thread_lock_t global_vm_lock;
-
-    struct rb_thread_struct *main_thread;
-    struct rb_thread_struct *running_thread;
-
-    st_table *living_threads;
-    VALUE thgroup_default;
-
-    int running;
-    int thread_abort_on_exception;
-    unsigned long trace_flag;
-    volatile int sleeper;
-
-    /* object management */
-    VALUE mark_object_ary;
-
-    VALUE special_exceptions[ruby_special_error_count];
-
-    /* load */
-    VALUE top_self;
-    VALUE load_path;
-    VALUE loaded_features;
-    struct st_table *loading_table;
-
-    /* signal */
-    struct {
-	VALUE cmd;
-	int safe;
-    } trap_list[RUBY_NSIG];
-
-    /* hook */
-    rb_event_hook_t *event_hooks;
-
-    int src_encoding_index;
-
-    VALUE verbose, debug, progname;
-    VALUE coverages;
-
-    struct unlinked_method_entry_list_entry *unlinked_method_entry_list;
-
-#if defined(ENABLE_VM_OBJSPACE) && ENABLE_VM_OBJSPACE
-    struct rb_objspace *objspace;
-#endif
+  VALUE self;
+  
+  rb_thread_lock_t global_vm_lock;
+  
+  struct rb_thread_struct *main_thread;
+  struct rb_thread_struct *running_thread;
+  
+  st_table *living_threads;
+  VALUE thgroup_default;
+  
+  int running;
+  int thread_abort_on_exception;
+  unsigned long trace_flag;
+  volatile int sleeper;
+  
+  /* object management */
+  VALUE mark_object_ary;
+  
+  VALUE special_exceptions[ruby_special_error_count];
+  
+  /* load */
+  VALUE top_self;
+  VALUE load_path;
+  VALUE loaded_features;
+  struct st_table *loaded_features_hash;
+  struct st_table *loading_table;
+  
+  /* signal */
+  struct {
+    VALUE cmd;
+    int safe;
+  } trap_list[RUBY_NSIG];
+  
+  /* hook */
+  rb_event_hook_t *event_hooks;
+  
+  int src_encoding_index;
+  
+  VALUE verbose, debug, progname;
+  VALUE coverages;
+  
+  struct unlinked_method_entry_list_entry *unlinked_method_entry_list;
+  
+  #if defined(ENABLE_VM_OBJSPACE) && ENABLE_VM_OBJSPACE
+  struct rb_objspace *objspace;
+  #endif
 } rb_vm_t;
 
 typedef struct {
-    VALUE *pc;			/* cfp[0] */
-    VALUE *sp;			/* cfp[1] */
-    VALUE *bp;			/* cfp[2] */
-    rb_iseq_t *iseq;		/* cfp[3] */
-    VALUE flag;			/* cfp[4] */
-    VALUE self;			/* cfp[5] / block[0] */
-    VALUE *lfp;			/* cfp[6] / block[1] */
-    VALUE *dfp;			/* cfp[7] / block[2] */
-    rb_iseq_t *block_iseq;	/* cfp[8] / block[3] */
-    VALUE proc;			/* cfp[9] / block[4] */
-    const rb_method_entry_t *me;/* cfp[10] */
+  VALUE *pc;          /* cfp[0] */
+  VALUE *sp;          /* cfp[1] */
+  VALUE *bp;          /* cfp[2] */
+  rb_iseq_t *iseq;        /* cfp[3] */
+  VALUE flag;         /* cfp[4] */
+  VALUE self;         /* cfp[5] / block[0] */
+  VALUE *lfp;         /* cfp[6] / block[1] */
+  VALUE *dfp;         /* cfp[7] / block[2] */
+  rb_iseq_t *block_iseq;  /* cfp[8] / block[3] */
+  VALUE proc;         /* cfp[9] / block[4] */
+  const rb_method_entry_t *me;/* cfp[10] */
 } rb_control_frame_t;
 
 typedef struct rb_block_struct {
-    VALUE self;			/* share with method frame if it's only block */
-    VALUE *lfp;			/* share with method frame if it's only block */
-    VALUE *dfp;			/* share with method frame if it's only block */
-    rb_iseq_t *iseq;
-    VALUE proc;
+  VALUE self;         /* share with method frame if it's only block */
+  VALUE *lfp;         /* share with method frame if it's only block */
+  VALUE *dfp;         /* share with method frame if it's only block */
+  rb_iseq_t *iseq;
+  VALUE proc;
 } rb_block_t;
 
 #define GetThreadPtr(obj, ptr) \
-  GetCoreDataFromValue(obj, rb_thread_t, ptr)
+GetCoreDataFromValue(obj, rb_thread_t, ptr)
 
 enum rb_thread_status {
-    THREAD_TO_KILL,
-    THREAD_RUNNABLE,
-    THREAD_STOPPED,
-    THREAD_STOPPED_FOREVER,
-    THREAD_KILLED
+  THREAD_TO_KILL,
+  THREAD_RUNNABLE,
+  THREAD_STOPPED,
+  THREAD_STOPPED_FOREVER,
+  THREAD_KILLED
 };
 
 typedef RUBY_JMP_BUF rb_jmpbuf_t;
 
 struct rb_vm_tag {
-    rb_jmpbuf_t buf;
-    VALUE tag;
-    VALUE retval;
-    struct rb_vm_tag *prev;
+  rb_jmpbuf_t buf;
+  VALUE tag;
+  VALUE retval;
+  struct rb_vm_tag *prev;
 };
 
 struct rb_vm_protect_tag {
-    struct rb_vm_protect_tag *prev;
+  struct rb_vm_protect_tag *prev;
 };
 
 #define RUBY_VM_VALUE_CACHE_SIZE 0x1000
 #define USE_VALUE_CACHE 0
 
 struct rb_unblock_callback {
-    rb_unblock_function_t *func;
-    void *arg;
+  rb_unblock_function_t *func;
+  void *arg;
 };
 
 struct rb_mutex_struct;
 
 typedef struct rb_thread_struct
 {
-    VALUE self;
-    rb_vm_t *vm;
-
-    /* execution information */
-    VALUE *stack;		/* must free, must mark */
-    unsigned long stack_size;
-    rb_control_frame_t *cfp;
-    int safe_level;
-    int raised_flag;
-    VALUE last_status; /* $? */
-
-    /* passing state */
-    int state;
-
-    /* for rb_iterate */
-    const rb_block_t *passed_block;
-
-    /* for bmethod */
-    const rb_method_entry_t *passed_me;
-
-    /* for load(true) */
-    VALUE top_self;
-    VALUE top_wrapper;
-
-    /* eval env */
-    rb_block_t *base_block;
-
-    VALUE *local_lfp;
-    VALUE local_svar;
-
-    /* thread control */
-    rb_thread_id_t thread_id;
-    enum rb_thread_status status;
-    int priority;
-    int slice;
-
-    native_thread_data_t native_thread_data;
-    void *blocking_region_buffer;
-
-    VALUE thgroup;
-    VALUE value;
-
-    VALUE errinfo;
-    VALUE thrown_errinfo;
-    int exec_signal;
-
-    int interrupt_flag;
-    rb_thread_lock_t interrupt_lock;
-    struct rb_unblock_callback unblock;
-    VALUE locking_mutex;
-    struct rb_mutex_struct *keeping_mutexes;
-    volatile int transition_for_lock;
-
-    struct rb_vm_tag *tag;
-    struct rb_vm_protect_tag *protect_tag;
-
-    int parse_in_eval;
-    int mild_compile_error;
-
-    /* storage */
-    st_table *local_storage;
-#if USE_VALUE_CACHE
-    VALUE value_cache[RUBY_VM_VALUE_CACHE_SIZE + 1];
-    VALUE *value_cache_ptr;
-#endif
-
-    struct rb_thread_struct *join_list_next;
-    struct rb_thread_struct *join_list_head;
-
-    VALUE first_proc;
-    VALUE first_args;
-    VALUE (*first_func)(ANYARGS);
-
-    /* for GC */
-    VALUE *machine_stack_start;
-    VALUE *machine_stack_end;
-    size_t machine_stack_maxsize;
-#ifdef __ia64
-    VALUE *machine_register_stack_start;
-    VALUE *machine_register_stack_end;
-    size_t machine_register_stack_maxsize;
-#endif
-    jmp_buf machine_regs;
-    int mark_stack_len;
-
-    /* statistics data for profiler */
-    VALUE stat_insn_usage;
-
-    /* tracer */
-    rb_event_hook_t *event_hooks;
-    rb_event_flag_t event_flags;
-    int tracing;
-
-    /* fiber */
-    VALUE fiber;
-    VALUE root_fiber;
-    rb_jmpbuf_t root_jmpbuf;
-
-    /* misc */
-    int method_missing_reason;
-    int abort_on_exception;
-#ifdef USE_SIGALTSTACK
-    void *altstack;
-#endif
+  VALUE self;
+  rb_vm_t *vm;
+  
+  /* execution information */
+  VALUE *stack;       /* must free, must mark */
+  unsigned long stack_size;
+  rb_control_frame_t *cfp;
+  int safe_level;
+  int raised_flag;
+  VALUE last_status; /* $? */
+  
+  /* passing state */
+  int state;
+  
+  /* for rb_iterate */
+  const rb_block_t *passed_block;
+  
+  /* for bmethod */
+  const rb_method_entry_t *passed_me;
+  
+  /* for load(true) */
+  VALUE top_self;
+  VALUE top_wrapper;
+  
+  /* eval env */
+  rb_block_t *base_block;
+  
+  VALUE *local_lfp;
+  VALUE local_svar;
+  
+  /* thread control */
+  rb_thread_id_t thread_id;
+  enum rb_thread_status status;
+  int priority;
+  int slice;
+  
+  native_thread_data_t native_thread_data;
+  void *blocking_region_buffer;
+  
+  VALUE thgroup;
+  VALUE value;
+  
+  VALUE errinfo;
+  VALUE thrown_errinfo;
+  int exec_signal;
+  
+  int interrupt_flag;
+  rb_thread_lock_t interrupt_lock;
+  struct rb_unblock_callback unblock;
+  VALUE locking_mutex;
+  struct rb_mutex_struct *keeping_mutexes;
+  volatile int transition_for_lock;
+  
+  struct rb_vm_tag *tag;
+  struct rb_vm_protect_tag *protect_tag;
+  
+  int parse_in_eval;
+  int mild_compile_error;
+  
+  /* storage */
+  st_table *local_storage;
+  #if USE_VALUE_CACHE
+  VALUE value_cache[RUBY_VM_VALUE_CACHE_SIZE + 1];
+  VALUE *value_cache_ptr;
+  #endif
+  
+  struct rb_thread_struct *join_list_next;
+  struct rb_thread_struct *join_list_head;
+  
+  VALUE first_proc;
+  VALUE first_args;
+  VALUE (*first_func)(ANYARGS);
+  
+  /* for GC */
+  VALUE *machine_stack_start;
+  VALUE *machine_stack_end;
+  size_t machine_stack_maxsize;
+  #ifdef __ia64
+  VALUE *machine_register_stack_start;
+  VALUE *machine_register_stack_end;
+  size_t machine_register_stack_maxsize;
+  #endif
+  jmp_buf machine_regs;
+  int mark_stack_len;
+  
+  /* statistics data for profiler */
+  VALUE stat_insn_usage;
+  
+  /* tracer */
+  rb_event_hook_t *event_hooks;
+  rb_event_flag_t event_flags;
+  int tracing;
+  
+  /* fiber */
+  VALUE fiber;
+  VALUE root_fiber;
+  rb_jmpbuf_t root_jmpbuf;
+  
+  /* misc */
+  int method_missing_reason;
+  int abort_on_exception;
+  #ifdef USE_SIGALTSTACK
+  void *altstack;
+  #endif
 } rb_thread_t;
 
 /* iseq.c */
@@ -503,36 +504,36 @@ RUBY_EXTERN VALUE rb_mRubyVMFrozenCore;
 #define RUBY_VM_THREAD_STACK_SIZE (128 * 1024)
 
 #define GetProcPtr(obj, ptr) \
-  GetCoreDataFromValue(obj, rb_proc_t, ptr)
+GetCoreDataFromValue(obj, rb_proc_t, ptr)
 
 typedef struct {
-    rb_block_t block;
-
-    VALUE envval;		/* for GC mark */
-    VALUE blockprocval;
-    int safe_level;
-    int is_from_method;
-    int is_lambda;
+  rb_block_t block;
+  
+  VALUE envval;       /* for GC mark */
+  VALUE blockprocval;
+  int safe_level;
+  int is_from_method;
+  int is_lambda;
 } rb_proc_t;
 
 #define GetEnvPtr(obj, ptr) \
-  GetCoreDataFromValue(obj, rb_env_t, ptr)
+GetCoreDataFromValue(obj, rb_env_t, ptr)
 
 typedef struct {
-    VALUE *env;
-    int env_size;
-    int local_size;
-    VALUE prev_envval;		/* for GC mark */
-    rb_block_t block;
+  VALUE *env;
+  int env_size;
+  int local_size;
+  VALUE prev_envval;      /* for GC mark */
+  rb_block_t block;
 } rb_env_t;
 
 #define GetBindingPtr(obj, ptr) \
-  GetCoreDataFromValue(obj, rb_binding_t, ptr)
+GetCoreDataFromValue(obj, rb_binding_t, ptr)
 
 typedef struct {
-    VALUE env;
-    VALUE filename;
-    unsigned short line_no;
+  VALUE env;
+  VALUE filename;
+  unsigned short line_no;
 } rb_binding_t;
 
 /* used by compile time and send insn */
@@ -568,7 +569,7 @@ typedef struct {
 #define VM_FRAME_FLAG_PASSED 0x0100
 
 #define RUBYVM_CFUNC_FRAME_P(cfp) \
-  (VM_FRAME_TYPE(cfp) == VM_FRAME_MAGIC_CFUNC)
+(VM_FRAME_TYPE(cfp) == VM_FRAME_MAGIC_CFUNC)
 
 /* inline cache */
 typedef struct iseq_inline_cache_entry *IC;
@@ -577,7 +578,7 @@ extern VALUE ruby_vm_global_state_version;
 
 #define GET_VM_STATE_VERSION() (ruby_vm_global_state_version)
 #define INC_VM_STATE_VERSION() \
-  (ruby_vm_global_state_version = (ruby_vm_global_state_version+1) & 0x8fffffff)
+(ruby_vm_global_state_version = (ruby_vm_global_state_version+1) & 0x8fffffff)
 void rb_vm_change_state(void);
 
 typedef VALUE CDHASH;
@@ -587,7 +588,7 @@ typedef VALUE CDHASH;
 #endif
 
 typedef rb_control_frame_t *
-  (FUNC_FASTCALL(*rb_insn_func_t))(rb_thread_t *, rb_control_frame_t *);
+(FUNC_FASTCALL(*rb_insn_func_t))(rb_thread_t *, rb_control_frame_t *);
 
 #define GC_GUARDED_PTR(p)     ((VALUE)((VALUE)(p) | 0x01))
 #define GC_GUARDED_PTR_REF(p) ((void *)(((VALUE)p) & ~0x03))
@@ -596,19 +597,19 @@ typedef rb_control_frame_t *
 #define RUBY_VM_PREVIOUS_CONTROL_FRAME(cfp) (cfp+1)
 #define RUBY_VM_NEXT_CONTROL_FRAME(cfp) (cfp-1)
 #define RUBY_VM_END_CONTROL_FRAME(th) \
-  ((rb_control_frame_t *)((th)->stack + (th)->stack_size))
+((rb_control_frame_t *)((th)->stack + (th)->stack_size))
 #define RUBY_VM_VALID_CONTROL_FRAME_P(cfp, ecfp) \
-  ((void *)(ecfp) > (void *)(cfp))
+((void *)(ecfp) > (void *)(cfp))
 #define RUBY_VM_CONTROL_FRAME_STACK_OVERFLOW_P(th, cfp) \
-  (!RUBY_VM_VALID_CONTROL_FRAME_P((cfp), RUBY_VM_END_CONTROL_FRAME(th)))
+(!RUBY_VM_VALID_CONTROL_FRAME_P((cfp), RUBY_VM_END_CONTROL_FRAME(th)))
 
 #define RUBY_VM_IFUNC_P(ptr)        (BUILTIN_TYPE(ptr) == T_NODE)
 #define RUBY_VM_NORMAL_ISEQ_P(ptr) \
-  (ptr && !RUBY_VM_IFUNC_P(ptr))
+(ptr && !RUBY_VM_IFUNC_P(ptr))
 
 #define RUBY_VM_GET_BLOCK_PTR_IN_CFP(cfp) ((rb_block_t *)(&(cfp)->self))
 #define RUBY_VM_GET_CFP_FROM_BLOCK_PTR(b) \
-  ((rb_control_frame_t *)((VALUE *)(b) - 5))
+((rb_control_frame_t *)((VALUE *)(b) - 5))
 
 /* VM related object allocate functions */
 VALUE rb_thread_alloc(VALUE klass);
@@ -661,8 +662,8 @@ extern rb_vm_t *ruby_current_vm;
 #define GET_THREAD() ruby_current_thread
 #define rb_thread_set_current_raw(th) (void)(ruby_current_thread = (th))
 #define rb_thread_set_current(th) do { \
-    rb_thread_set_current_raw(th); \
-    th->vm->running_thread = th; \
+rb_thread_set_current_raw(th); \
+th->vm->running_thread = th; \
 } while (0)
 
 #else
@@ -683,25 +684,26 @@ void rb_thread_lock_unlock(rb_thread_lock_t *);
 void rb_thread_lock_destroy(rb_thread_lock_t *);
 
 #define RUBY_VM_CHECK_INTS_TH(th) do { \
-  if (UNLIKELY(th->interrupt_flag)) { \
-    rb_threadptr_execute_interrupts(th); \
+if (UNLIKELY(th->interrupt_flag)) { \
+  rb_threadptr_execute_interrupts(th); \
   } \
-} while (0)
-
-#define RUBY_VM_CHECK_INTS() \
+  } while (0)
+  
+  #define RUBY_VM_CHECK_INTS() \
   RUBY_VM_CHECK_INTS_TH(GET_THREAD())
-
-/* tracer */
-void
-rb_threadptr_exec_event_hooks(rb_thread_t *th, rb_event_flag_t flag, VALUE self, ID id, VALUE klass);
-
-#define EXEC_EVENT_HOOK(th, flag, self, id, klass) do { \
-    rb_event_flag_t wait_event__ = th->event_flags; \
-    if (UNLIKELY(wait_event__)) { \
-	if (wait_event__ & (flag | RUBY_EVENT_VM)) { \
-	    rb_threadptr_exec_event_hooks(th, flag, self, id, klass); \
-	} \
-    } \
-} while (0)
-
-#endif /* RUBY_VM_CORE_H */
+  
+  /* tracer */
+  void
+  rb_threadptr_exec_event_hooks(rb_thread_t *th, rb_event_flag_t flag, VALUE self, ID id, VALUE klass);
+  
+  #define EXEC_EVENT_HOOK(th, flag, self, id, klass) do { \
+  rb_event_flag_t wait_event__ = th->event_flags; \
+  if (UNLIKELY(wait_event__)) { \
+    if (wait_event__ & (flag | RUBY_EVENT_VM)) { \
+      rb_threadptr_exec_event_hooks(th, flag, self, id, klass); \
+      } \
+      } \
+      } while (0)
+      
+      #endif /* RUBY_VM_CORE_H */
+      

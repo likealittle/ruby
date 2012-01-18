@@ -458,7 +458,7 @@ rb_assoc_new(VALUE car, VALUE cdr)
     return rb_ary_new3(2, car, cdr);
 }
 
-static VALUE
+VALUE
 to_ary(VALUE ary)
 {
     return rb_convert_type(ary, T_ARRAY, "Array", "to_ary");
