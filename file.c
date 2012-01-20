@@ -5055,8 +5055,8 @@ rb_find_file_ext(VALUE *filep, const char *const *ext)
     return rb_find_file_ext_safe(filep, ext, rb_safe_level());
 }
 
-int
-rb_find_file_ext_safe(VALUE *filep, const char *const *ext, int safe_level)
+// Returns the absolute path of a file. How it works, doesn't matter. 
+int rb_find_file_ext_safe(VALUE *filep, const char *const *ext, int safe_level)
 {
     const char *f = StringValueCStr(*filep);
     VALUE fname = *filep, load_path, tmp;
