@@ -52,6 +52,8 @@ rb_get_load_path(void)
 {
     printf("Function 2"); 
     VALUE load_path = GET_VM()->load_path;
+    printf("Load path has these elements:"); 
+    print_str_ary(load_path);
     return load_path;
 }
 
@@ -94,31 +96,32 @@ get_loading_table(void)
     return GET_VM()->loading_table;
 }
 
-static VALUE
-loaded_feature_path(const char *name, long vlen, const char *feature, long len,
-		    int type, VALUE load_path)
+// FIXME: For adding files which are in the default ruby path! Not useful for the problem statement. But needed for the patch. 
+static VALUE loaded_feature_path(const char *name, long vlen, const char *feature, long len, int type, VALUE load_path)
 {
     printf("Function 7"); 
     long i;
+    // Loop through every element in $:
     for (i = 0; i < RARRAY_LEN(load_path); ++i) {
-	VALUE p = RARRAY_PTR(load_path)[i];
-	const char *s = StringValuePtr(p);
-	long n = RSTRING_LEN(p);
-
-	if (vlen < n + len + 1) continue;
-	if (n && (strncmp(name, s, n) || name[n] != '/')) continue;
-	if (strncmp(name + n + 1, feature, len)) continue;
-	if (name[n+len+1] && name[n+len+1] != '.') continue;
-	switch (type) {
-	  case 's':
-	    if (IS_DLEXT(&name[n+len+1])) return p;
-	    break;
-	  case 'r':
-	    if (IS_RBEXT(&name[n+len+1])) return p;
-	    break;
-	  default:
-	    return p;
-	}
+        VALUE p = RARRAY_PTR(load_path)[i];
+        const char *s = StringValuePtr(p);
+        long n = RSTRING_LEN(p);
+        if (vlen < n + len + 1) continue;
+        if (n && (strncmp(name, s, n) || name[n] != '/')) continue;
+        if (strncmp(name + n + 1, feature, len)) continue;
+        if (name[n+len+1] && name[n+len+1] != '.') continue;
+        switch (type) {
+            case 's':
+                if (IS_DLEXT(&name[n+len+1])) return p;
+                break;
+            case 'r':
+                if (IS_RBEXT(&name[n+len+1])){
+                    return p;
+                }
+                break;
+            default:
+                return p;
+        }
     }
     return 0;
 }
@@ -144,8 +147,8 @@ loaded_feature_path_i(st_data_t v, st_data_t b, st_data_t f)
     return ST_STOP;
 }
 
-static int
-rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const char **fn)
+int cnt = 0 ; 
+static int rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const char **fn)
 {
     printf("Function 9"); 
     printf("Feature, ext, rb , exp = %s %s %d %d\n",feature,ext,rb,expanded);
@@ -169,6 +172,7 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
         elen = 0;
         type = 0;
     }
+    printf("Length of the feature we're trying to add is %d\n" , len ) ; 
     // Does this give $" ? I'm not very sure. I'm going ahead with that assumption. 
     features = get_loaded_features();
     printf("Elements in $\"= ") ;
@@ -180,12 +184,16 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
         // String value of the pointer
         f = StringValuePtr(v);
         printf("f = %s\n", f);
+        /* if the expanded path of the feature in $" is less than the absolute/relative path of the feature to be added
+           then you can skip it */
         if ((n = RSTRING_LEN(v)) < len) continue;
         if (strncmp(f, feature, len) != 0) {
             if (expanded) continue;
-            if (!load_path) load_path = rb_get_expanded_load_path();
+            if (!load_path) 
+                load_path = rb_get_expanded_load_path();
             if (!(p = loaded_feature_path(f, n, feature, len, type, load_path)))
                 continue;
+            // Not going to come here for the current problem statement. 
             expanded = 1;
             f += RSTRING_LEN(p) + 1;
         }
@@ -201,6 +209,8 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
             return 'r';
         }
     }
+    cnt ++ ; 
+    printf("\n feature trying load = %s cnt = %d \n" ,  feature , cnt );
     loading_tbl = get_loading_table();
     if (loading_tbl) {
         f = 0;
