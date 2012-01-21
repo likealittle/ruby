@@ -21,7 +21,6 @@ RUBY_GLOBAL_SETUP
 int
 main(int argc, char **argv)
 {
-    printf("Hello!\n");
 #ifdef RUBY_DEBUG_ENV
     ruby_set_debug_option(getenv("RUBY_DEBUG"));
 #endif
