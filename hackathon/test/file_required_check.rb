@@ -17,12 +17,12 @@ class FileRequiredTest
   def main
     `mkdir -p #{PATH} &2>1`
 
-# generate_same_file
+    generate_same_file
 
-# start = Time.now
-# run
-# same_file = Time.now - start
-# puts "Requiring the same file 10K times ran in #{same_file} seconds."
+    start = Time.now
+    run
+    same_file = Time.now - start
+    puts "Requiring the same file 10K times ran in #{same_file} seconds."
 
     generate_diff_files
     
