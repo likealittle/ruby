@@ -32,13 +32,13 @@ static void print_str_ary(VALUE ary)
 {
     long n = RARRAY_LEN(ary);
     long i;
-    //printf("\n{\n");
+    printf("\n{\n");
 
     for(i =0; i < n; i++)
     {
-        //printf("%s,\n", RSTRING_PTR( RARRAY_PTR(ary)[i]));
+        printf("%s,\n", RSTRING_PTR( RARRAY_PTR(ary)[i]));
     }
-    //printf("}\n");
+    printf("}\n");
 }
 // Function to //print a ruby string from "VALUE arr".
 static void print_str(VALUE ary){
@@ -174,13 +174,31 @@ static int rb_feature_p(const char *feature, const char *ext, int rb, int expand
     // Does this give $" ? I'm not very sure. I'm going ahead with that assumption. 
     features = get_loaded_features();
     //printf("\n\nElements in $:= ") ;
-    print_str_ary(rb_get_expanded_load_path());
+    //print_str_ary(rb_get_expanded_load_path());
     //printf("\n\nElements in $\"= ") ;
-    print_str_ary(features);
+    //print_str_ary(features);
+    char *which = feature ;
     int found = 0 ; 
     found = st_lookup( dollar_quote , feature , &found ) ; 
+    if ( !ext && ! found ){
+        for ( i = 0 ; loadable_ext[i] ; i ++ ){
+            char t[MAX_FILE_NAME_LENGTH];
+            strcpy(t,feature);
+            strcat(t,loadable_ext[i]);
+            int temp;
+            temp = st_lookup( dollar_quote , t , &temp );
+            //printf("Checking with %s\n" , t ); 
+            if ( temp ){
+                found = 1 ;
+                expanded = 1 ; 
+                which = t ;
+                //printf("Worked with %s\n" , t ); 
+                break;
+            }
 
-    char *which = feature ;
+        }
+    }
+
     // FIXME:Worry about loaded feature path later! For the second problem statement, that is. 
     if (! expanded  && !found ){
         load_path = rb_get_expanded_load_path();
@@ -586,6 +604,8 @@ VALUE
 rb_f_require(VALUE obj, VALUE fname)
 {
     //printf("Function 20\n"); 
+    //printf("\n\nRB_F_Require! Elements in $\"= ") ;
+    //print_str_ary(get_loaded_features());
     return rb_require_safe(fname, rb_safe_level());
 }
 
@@ -604,6 +624,8 @@ rb_f_require_relative(VALUE obj, VALUE fname)
 
 static int search_required(VALUE fname, volatile VALUE *path, int safe_level)
 {
+    //printf("\n\nSearch Required! Elements in $\"= ") ;
+    //print_str_ary(get_loaded_features());
     //printf("\n$:=");
     //print_str_ary(rb_get_load_path() );
     //printf("Function 22"); 
@@ -739,6 +761,8 @@ VALUE
 rb_require_safe(VALUE fname, int safe)
 {
     //printf("Function 25"); 
+    //printf("\n\nRB_Require_Safe! Elements in $\"= ") ;
+    //print_str_ary(get_loaded_features());
     volatile VALUE result = Qnil;
     rb_thread_t *th = GET_THREAD();
     volatile VALUE errinfo = th->errinfo;
@@ -813,7 +837,21 @@ rb_require_safe(VALUE fname, int safe)
 VALUE
 rb_require(const char *fname)
 {
-    //printf("Function 26"); 
+    //printf("\n\nRB_Require! Elements in $\"= ") ;
+    //print_str_ary(get_loaded_features());
+
+    VALUE features = get_loaded_features();
+    //print_str_ary( features );
+    
+    int i ;
+    for (i = 0; i < RARRAY_LEN(features); ++i) {
+        // Pointer to i'th feature
+        VALUE v = RARRAY_PTR(features)[i];
+        // String value of the pointer
+        char *f = StringValue(v);
+        // Add to the hash table!
+        st_add_direct( dollar_quote , (st_data_t) ( f ) , (st_data_t)(42) ) ; 
+    }
     VALUE fn = rb_str_new2(fname);
     OBJ_FREEZE(fn);
     return rb_require_safe(fn, rb_safe_level());
@@ -957,26 +995,9 @@ Init_load()
 
     dollar_quote = st_init_strtable();
 
-    st_add_direct( dollar_quote , "chetan" , 42 );
-    int result; 
-    //printf("Checking %d \n" , st_lookup( dollar_quote , "chetan" , &result ) ); 
-    //printf("Result = %d \n" , result ); 
+    st_add_direct( dollar_quote , "enumerator.so" , 42 );
 
 
-
-
-    VALUE features = get_loaded_features();
-    //print_str_ary( features );
-    
-    int i ;
-    for (i = 0; i < RARRAY_LEN(features); ++i) {
-        // Pointer to i'th feature
-        VALUE v = RARRAY_PTR(features)[i];
-        // String value of the pointer
-        char *f = StringValue(v);
-        // Add to the hash table!
-        st_add_direct( dollar_quote , (st_data_t) ( f ) , (st_data_t)(42) ) ; 
-    }
 
  
 
@@ -990,4 +1011,7 @@ Init_load()
 
     ruby_dln_librefs = rb_ary_new();
     rb_gc_register_mark_object(ruby_dln_librefs);
+
+    //printf("\n\nInit! Elements in $\"= ") ;
+    //print_str_ary(get_loaded_features());
 }
