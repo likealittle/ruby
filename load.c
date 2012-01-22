@@ -406,6 +406,7 @@ rb_feature_provided(const char *feature, const char **loading)
 
 static void
 rb_provide_feature(VALUE feature){
+    st_add_direct( get_dollar_quote() , StringValuePtr(feature) , 42 ); 
     rb_ary_push(get_loaded_features(), feature);
 }
 
@@ -814,7 +815,6 @@ rb_require_safe(VALUE fname, int safe)
                 }
                 // Add to our hash table!
                 //printf("Adding %s to the hash table!\n" , StringValuePtr(path) );
-                st_add_direct( get_dollar_quote() , StringValuePtr(path) , 42 ); 
                 rb_provide_feature(path);
                 result = Qtrue;
             }
@@ -985,7 +985,7 @@ Init_load()
 
     vm -> dollar_quote = st_init_strtable();
 
-    st_add_direct( get_dollar_quote() , "enumerator.so" , 42 );
+    //st_add_direct( get_dollar_quote() , "enumerator.so" , 42 );
 
     rb_define_global_function("load", rb_f_load, -1);
     rb_define_global_function("require", rb_f_require, 1);

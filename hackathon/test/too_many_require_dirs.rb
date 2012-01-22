@@ -66,7 +66,7 @@ class TooManyRequireDirsTest
       Dir.mkdir(File.expand_path("#{PATH}/#{d}"), 0700) rescue nil
       write_file("#{PATH}/#{d}/#{f}.rb", "")
       main += "$: << '#{PATH}/#{d}'\n"
-      main += "require '#{f}'\n"
+      main += "require '#{f}.rb'\n"
     end
 
     write_file("#{PATH}/main.rb",  main)
