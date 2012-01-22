@@ -1,6 +1,7 @@
 == Introduction
 
-Ruby is a reasonably popular high level programming language of choice for many startups. Ruby uses the syntax:
+Ruby is a reasonably popular high level programming language of choice for many 
+startups. Ruby uses the syntax:
 
 require "a.rb"
 
@@ -8,21 +9,34 @@ similar to the C statement.
 
 #include "a.c"
 
-Basically the interpreter runs through the source code and continues interpreting the a.rb file. Since ruby is an interpreted language there is no compilation and the require statement actually runs the sources within the new file.
+Basically the interpreter runs through the source code and continues interpreting 
+the a.rb file. Since ruby is an interpreted language there is no compilation and 
+the require statement actually runs the sources within the new file.
 
 More reading: http://ruby.about.com/od/rubyfeatures/a/require.htm
 
-The patch you are about to make is going to solve the most important performance problem of ruby as a language. It'd be a great addition to your resume if your patch gets accepted by the ruby community.
+The patch you are about to make is going to solve the most important performance 
+problem of ruby as a language. It'd be a great addition to your resume if your 
+patch gets accepted by the ruby community.
 
 == Problem Summary
 
-The implementation of require code in ruby seems to be flawed, and from my quick glance of the source, it seems to be doing O(n^2) or more operations, where n is the number of required files. (I might be wrong though). Can you fix it?
+The implementation of require code in ruby seems to be flawed, and from my quick
+glance of the source, it seems to be doing O(n^2) or more operations, where n is
+the number of required files. (I might be wrong though). Can you fix it?
 
 == Setup from my end
 
 1. Make github accounts and send me the handles. That way I can add you to the repository.
-2. Since it's a remote team, to make it more fun, can you guys create twitter handles for each of you participating and send it to me? This could be a private throw away twitter that you make for this contest. Every hour or so, if you guys update what's the problem you are trying to tackle, that might give a good idea of the work that's going on. You can work as a team and allot work amongst yourself.
-Tip: If you need an extra throw-away email for this throw-away twitter account you can do something like myprasanna+throw@gmail.com replacing myprasanna with your own mail. i.e, gmail ignores the chars after the '+' sign and twitter does not know that.
+2. Since it's a remote team, to make it more fun, can you guys create twitter 
+   handles for each of you participating and send it to me? This could be a private
+   throw away twitter that you make for this contest. Every hour or so, if you guys
+   update what's the problem you are trying to tackle, that might give a good idea
+   of the work that's going on. You can work as a team and allot work amongst yourself.
+
+Tip: If you need an extra throw-away email for this throw-away twitter account you 
+can do something like myprasanna+throw@gmail.com replacing myprasanna with your
+own mail. i.e, gmail ignores the chars after the '+' sign and twitter does not know that.
 
 == Getting started
 
@@ -59,19 +73,28 @@ Make sure everything passes before you proceed.
 
 2. Require slowness tests.
 
-The task at hand is to speed up the ruby requires. To do that I've written a couple of basic tests to demonstrate the problem precisely. The tests are expected to pass, if you manage to fix the ruby kernel correctly.
+The task at hand is to speed up the ruby requires. To do that I've written a 
+couple of basic tests to demonstrate the problem precisely. 
+The tests are expected to pass, if you manage to fix the ruby kernel correctly.
 
 2.1) ./ruby hackathon/test/file_required_check.rb 
 
-When requiring 10K files, ruby slows down a lot. Ruby before loading a file wants to make sure it's not already require'd. To do that it loops through a variable called $" and checks if this file is require'd. Read the test file, to understand a more detailed explanation.
+When requiring 10K files, ruby slows down a lot. Ruby before loading a file wants
+to make sure it's not already require'd. To do that it loops through a variable 
+called $" and checks if this file is require'd. Read the test file, to understand
+a more detailed explanation.
 
 If you fix this operation's complexity to O(1) or O(log(n)) this test must pass easily.
 
 2.2) ./ruby hackathon/test/too_many_require_dirs.rb
 
-When require 1K files from 1K diff directories, ruby slows down a lot. This happens because, ruby has a variable called $: which stores the ordered priority of directories to search for the required file. Ruby kernel currently loops through this array and checks one by one. Read the test file, to understand a more detailed explanation.
+When require 1K files from 1K diff directories, ruby slows down a lot. This happens 
+because, ruby has a variable called $: which stores the ordered priority of directories 
+to search for the required file. Ruby kernel currently loops through this array
+and checks one by one. Read the test file, to understand a more detailed explanation.
 
-If you fix this operation's complexity to O(1) or O(log(n)) by using a clever trie, then this test will pass. Make sure the trie handles the priority ordering though.
+If you fix this operation's complexity to O(1) or O(log(n)) by using a clever trie,
+then this test will pass. Make sure the trie handles the priority ordering though.
 
 == Directory trie
 
@@ -79,18 +102,26 @@ Checkout the pseudo code of the trie in [pseudo_code.txt]
 
 Kaushik: is it that every file in the directory is in the trie?
 
-me: I think it requires some clever tricks, like lazily opening the trie nodes only when a traversal requires opening it and invalidating the least nodes, when a the $: is modified
+me: I think it requires some clever tricks, like lazily opening the trie nodes 
+only when a traversal requires opening it and invalidating the least nodes, when 
+a the $: is modified
 (I might be wrong. This is what I understood from my quick glance of the code.)
 
 Kaushik: my doubt is whether we store the list of all files in the trie ?
 
-me: Yes, the trie structure is meant to store the list of all files. But you don't populate it right away.. let me explain:
+me: Yes, the trie structure is meant to store the list of all files. 
+But you don't populate it right away.. let me explain:
 
 Kaushik: i got that it has to be according to the priority
 
-me: when someone adds '/lib/a' to the require directory, you don't crawl recursively from the 'a' directory, because that might end up taking tons of time. what you want to do is, list the contents of the 'a' directory and add the first level to the nodes in the trie. (merging has to be clever about priorities yes).
+me: when someone adds '/lib/a' to the require directory, you don't crawl 
+recursively from the 'a' directory, because that might end up taking tons of time.
+what you want to do is, list the contents of the 'a' directory and add the first
+level to the nodes in the trie. (merging has to be clever about priorities yes).
 
-Now, when someone requires 'dir/b' then when traversing the first level node 'dir', you might have to open up /lib/a/dir if the priority ordering demands opening it. Makes sense?
+Now, when someone requires 'dir/b' then when traversing the first level node 
+'dir', you might have to open up /lib/a/dir if the priority ordering demands 
+opening it. Makes sense?
 
 Kaushik: yeah
 
@@ -99,4 +130,5 @@ Kaushik: yeah
 We don't expect you to follow coding conventions. But here's a link anyways:
 http://www.ruby-lang.org/en/community/ruby-core/#coding-standards
 
-If you follow them and commit the patch to the ruby kernel, you become a ruby core contributor, which is a significant feat, and adds immense value to your resume.
+If you follow them and commit the patch to the ruby kernel, you become a ruby 
+core contributor, which is a significant feat, and adds immense value to your resume.

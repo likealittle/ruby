@@ -2,12 +2,19 @@
  * load methods from eval.c
  */
 
+/**
+ * Comments by @aarvay
+ * load_path => $: (Refers to the directories to look for the file)
+ * loaded_features => $" (Absolute path of the file)
+ */
+
 #include "ruby/ruby.h"
 #include "ruby/util.h"
 #include "dln.h"
 #include "eval_intern.h"
 
 VALUE ruby_dln_librefs;
+VALUE hash_table;
 
 #define IS_RBEXT(e) (strcmp(e, ".rb") == 0)
 #define IS_SOEXT(e) (strcmp(e, ".so") == 0 || strcmp(e, ".o") == 0)
@@ -26,12 +33,32 @@ static const char *const loadable_ext[] = {
     0
 };
 
+static void
+print_str_ary(VALUE ary) {
+    long n = RARRAY_LEN(ary);
+    long i;
+    printf("\n{");
+    for(i=0; i<n; i++) {
+        printf("%s,", RSTRING_PTR(RARRAY_PTR(ary)[i]));
+    }
+    printf ("}\n");
+}
+
+static void
+print_str(VALUE str) {
+    printf("%s\n",RSTRING_PTR(str));
+}
+
 VALUE
 rb_get_load_path(void)
 {
     VALUE load_path = GET_VM()->load_path;
     return load_path;
 }
+
+/******************
+ * Looping through $: happens here.
+ *****************/
 
 VALUE
 rb_get_expanded_load_path(void)
@@ -41,8 +68,8 @@ rb_get_expanded_load_path(void)
     long i;
 
     ary = rb_ary_new2(RARRAY_LEN(load_path));
-    for (i = 0; i < RARRAY_LEN(load_path); ++i) {
-	VALUE path = rb_file_expand_path(RARRAY_PTR(load_path)[i], Qnil);
+    for (i = 0; i < RARRAY_LEN(load_path); ++i) { /* Loop through the entire $: */
+	VALUE path = rb_file_expand_path(RARRAY_PTR(load_path)[i], Qnil); /* Current path! */
 	rb_str_freeze(path);
 	rb_ary_push(ary, path);
     }
@@ -67,6 +94,11 @@ get_loading_table(void)
 {
     return GET_VM()->loading_table;
 }
+
+/************************************************************
+ * My guess : To check the already loaded features, again a full looping on $:
+ * happens here..
+ ***************************************************************/
 
 static VALUE
 loaded_feature_path(const char *name, long vlen, const char *feature, long len,
@@ -117,6 +149,10 @@ loaded_feature_path_i(st_data_t v, st_data_t b, st_data_t f)
     return ST_STOP;
 }
 
+
+/**
+ * TODO: Try to understand the flow of this function..LoL. I hate this
+ */
 static int
 rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const char **fn)
 {
@@ -128,82 +164,99 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
     int type;
 
     if (fn) *fn = 0;
+    
     if (ext) {
-	elen = strlen(ext);
-	len = strlen(feature) - elen;
-	type = rb ? 'r' : 's';
+	    elen = strlen(ext);
+	    len = strlen(feature) - elen;
+	    type = rb ? 'r' : 's';
     }
+    
     else {
-	len = strlen(feature);
-	elen = 0;
-	type = 0;
+	    len = strlen(feature);
+	    elen = 0;
+	    type = 0;
     }
+    
+    /*
+     * features => $"
+     */
     features = get_loaded_features();
     for (i = 0; i < RARRAY_LEN(features); ++i) {
-	v = RARRAY_PTR(features)[i];
-	f = StringValuePtr(v);
-	if ((n = RSTRING_LEN(v)) < len) continue;
-	if (strncmp(f, feature, len) != 0) {
-	    if (expanded) continue;
-	    if (!load_path) load_path = rb_get_expanded_load_path();
-	    if (!(p = loaded_feature_path(f, n, feature, len, type, load_path)))
-		continue;
-	    expanded = 1;
-	    f += RSTRING_LEN(p) + 1;
-	}
-	if (!*(e = f + len)) {
-	    if (ext) continue;
-	    return 'u';
-	}
-	if (*e != '.') continue;
-	if ((!rb || !ext) && (IS_SOEXT(e) || IS_DLEXT(e))) {
-	    return 's';
-	}
-	if ((rb || !ext) && (IS_RBEXT(e))) {
-	    return 'r';
-	}
+	    
+	    v = RARRAY_PTR(features)[i]; 
+	    
+	    f = StringValuePtr(v); 
+	    
+	    if ((n = RSTRING_LEN(v)) < len) continue; 
+	    
+	    if (strncmp(f, feature, len) != 0) { 
+	        if (expanded) continue; 
+	        if (!load_path) load_path = rb_get_expanded_load_path();
+	        if (!(p = loaded_feature_path(f, n, feature, len, type, load_path)))
+		    continue;
+	        expanded = 1;
+	        f += RSTRING_LEN(p) + 1;
+	    }
+
+        /**
+         * TODO: figure out what this piece of code does.
+         * Need to know when returns happen from here and when it doesn't
+         */
+	    if (!*(e = f + len)) {
+	        if (ext) continue;
+	        return 'u';
+	    }
+	    if (*e != '.') continue;
+	    if ((!rb || !ext) && (IS_SOEXT(e) || IS_DLEXT(e))) {
+	        return 's';
+	    }
+	    if ((rb || !ext) && (IS_RBEXT(e))) {
+	        return 'r';
+	    }
     }
     loading_tbl = get_loading_table();
     if (loading_tbl) {
-	f = 0;
-	if (!expanded) {
-	    struct loaded_feature_searching fs;
-	    fs.name = feature;
-	    fs.len = len;
-	    fs.type = type;
-	    fs.load_path = load_path ? load_path : rb_get_load_path();
-	    fs.result = 0;
-	    st_foreach(loading_tbl, loaded_feature_path_i, (st_data_t)&fs);
-	    if ((f = fs.result) != 0) {
-		if (fn) *fn = f;
-		goto loading;
+/*        printf("Loading Table is present for the following feature : %s\n\n", feature);*/
+	    f = 0;
+	    if (!expanded) {
+	        struct loaded_feature_searching fs;
+	        fs.name = feature;
+	        fs.len = len;
+	        fs.type = type;
+	        fs.load_path = load_path ? load_path : rb_get_load_path();
+	        fs.result = 0;
+	        st_foreach(loading_tbl, loaded_feature_path_i, (st_data_t)&fs);
+	        if ((f = fs.result) != 0) {
+		    if (fn) *fn = f;
+		    goto loading;
+	        }
 	    }
-	}
-	if (st_get_key(loading_tbl, (st_data_t)feature, &data)) {
-	    if (fn) *fn = (const char*)data;
-	  loading:
-	    if (!ext) return 'u';
-	    return !IS_RBEXT(ext) ? 's' : 'r';
-	}
-	else {
-	    VALUE bufstr;
-	    char *buf;
+	    if (st_get_key(loading_tbl, (st_data_t)feature, &data)) {
+	        if (fn) *fn = (const char*)data;
+	      loading:
+	        if (!ext) return 'u';
+	        return !IS_RBEXT(ext) ? 's' : 'r';
+	    }
+	    else {
+	        VALUE bufstr;
+	        char *buf;
 
-	    if (ext && *ext) return 0;
-	    bufstr = rb_str_tmp_new(len + DLEXT_MAXLEN);
-	    buf = RSTRING_PTR(bufstr);
-	    MEMCPY(buf, feature, char, len);
-	    for (i = 0; (e = loadable_ext[i]) != 0; i++) {
-		strlcpy(buf + len, e, DLEXT_MAXLEN + 1);
-		if (st_get_key(loading_tbl, (st_data_t)buf, &data)) {
-		    rb_str_resize(bufstr, 0);
-		    if (fn) *fn = (const char*)data;
-		    return i ? 's' : 'r';
-		}
+	        if (ext && *ext) return 0;
+	        bufstr = rb_str_tmp_new(len + DLEXT_MAXLEN);
+	        buf = RSTRING_PTR(bufstr);
+	        MEMCPY(buf, feature, char, len);
+	        for (i = 0; (e = loadable_ext[i]) != 0; i++) {
+		    strlcpy(buf + len, e, DLEXT_MAXLEN + 1);
+		    if (st_get_key(loading_tbl, (st_data_t)buf, &data)) {
+		        rb_str_resize(bufstr, 0);
+		        if (fn) *fn = (const char*)data;
+		        return i ? 's' : 'r';
+		    }
+	        }
+	        rb_str_resize(bufstr, 0);
 	    }
-	    rb_str_resize(bufstr, 0);
-	}
     }
+/*    printf("Loading Table is NOT present for the following feature : %s\n\n", feature);*/
     return 0;
 }
 
@@ -242,6 +295,8 @@ rb_feature_provided(const char *feature, const char **loading)
 static void
 rb_provide_feature(VALUE feature)
 {
+    rb_hash_rehash (hash_table);
+    rb_hash_aset (hash_table, feature, 1);
     rb_ary_push(get_loaded_features(), feature);
 }
 
@@ -253,14 +308,20 @@ rb_provide(const char *feature)
 
 NORETURN(static void load_failed(VALUE));
 
+/*******************************************************************************
+ * Addition into $" takes place here at rb_load_internal 
+ ******************************************************************************/
+
 static void
 rb_load_internal(VALUE fname, int wrap)
 {
+    printf("Load internal currently happening for the File : "); 
+    print_str( fname );
     int state;
     rb_thread_t *th = GET_THREAD();
     volatile VALUE wrapper = th->top_wrapper;
     volatile VALUE self = th->top_self;
-    volatile int loaded = FALSE;
+    volatile int loaded = FALSE; 
     volatile int mild_compile_error;
 #ifndef __GNUC__
     rb_thread_t *volatile th0 = th;
@@ -269,32 +330,30 @@ rb_load_internal(VALUE fname, int wrap)
     th->errinfo = Qnil; /* ensure */
 
     if (!wrap) {
-	rb_secure(4);		/* should alter global state */
-	th->top_wrapper = 0;
+	    rb_secure(4);		/* should alter global state */
+	    th->top_wrapper = 0;
     }
     else {
-	/* load in anonymous module as toplevel */
-	th->top_self = rb_obj_clone(rb_vm_top_self());
-	th->top_wrapper = rb_module_new();
-	rb_extend_object(th->top_self, th->top_wrapper);
+	    /* load in anonymous module as toplevel */
+	    th->top_self = rb_obj_clone(rb_vm_top_self());
+	    th->top_wrapper = rb_module_new();
+	    rb_extend_object(th->top_self, th->top_wrapper);
     }
-
     mild_compile_error = th->mild_compile_error;
     PUSH_TAG();
     state = EXEC_TAG();
     if (state == 0) {
-	NODE *node;
-	VALUE iseq;
+	    NODE *node;
+	    VALUE iseq;
 
-	th->mild_compile_error++;
-	node = (NODE *)rb_load_file(RSTRING_PTR(fname));
-	loaded = TRUE;
-	iseq = rb_iseq_new_top(node, rb_str_new2("<top (required)>"), fname, fname, Qfalse);
-	th->mild_compile_error--;
-	rb_iseq_eval(iseq);
+	    th->mild_compile_error++;
+	    node = (NODE *)rb_load_file(RSTRING_PTR(fname)); /* Creates a new node*/
+	    loaded = TRUE; /* Indicates, loaded! */
+	    iseq = rb_iseq_new_top(node, rb_str_new2("<top (required)>"), fname, fname, Qfalse);
+	    th->mild_compile_error--;
+	    rb_iseq_eval(iseq); /* The loaded file is being interpreted here */
     }
     POP_TAG();
-
 #ifndef __GNUC__
     th = th0;
     fname = RB_GC_GUARD(fname);
@@ -304,10 +363,10 @@ rb_load_internal(VALUE fname, int wrap)
     th->top_wrapper = wrapper;
 
     if (!loaded) {
-	rb_exc_raise(GET_THREAD()->errinfo);
+	    rb_exc_raise(GET_THREAD()->errinfo);
     }
     if (state) {
-	rb_vm_jump_tag_but_local_jump(state, Qundef);
+	    rb_vm_jump_tag_but_local_jump(state, Qundef);
     }
 
     if (!NIL_P(GET_THREAD()->errinfo)) {
@@ -463,60 +522,67 @@ search_required(VALUE fname, volatile VALUE *path, int safe_level)
     *path = 0;
     ext = strrchr(ftptr = RSTRING_PTR(fname), '.');
     if (ext && !strchr(ext, '/')) {
-	if (IS_RBEXT(ext)) {
-	    if (rb_feature_p(ftptr, ext, TRUE, FALSE, &loading)) {
-		if (loading) *path = rb_str_new2(loading);
-		return 'r';
+	
+	    /**
+	     * Basically we worry here for now.
+	     * Call to rb_feature_p happens here, and it happens for quite a lot of
+	     * times.
+	     */
+	    if (IS_RBEXT(ext)) {
+	        if (rb_feature_p(ftptr, ext, TRUE, FALSE, &loading)) {
+		        if (loading) *path = rb_str_new2(loading);
+		        return 'r';
+	        }
+	        if ((tmp = rb_find_file_safe(fname, safe_level)) != 0) {
+		    ext = strrchr(ftptr = RSTRING_PTR(tmp), '.');
+		    if (!rb_feature_p(ftptr, ext, TRUE, TRUE, &loading) || loading)
+		        *path = tmp;
+		    return 'r';
+	        }
+	        return 0;
 	    }
-	    if ((tmp = rb_find_file_safe(fname, safe_level)) != 0) {
-		ext = strrchr(ftptr = RSTRING_PTR(tmp), '.');
-		if (!rb_feature_p(ftptr, ext, TRUE, TRUE, &loading) || loading)
-		    *path = tmp;
-		return 'r';
+	
+	    else if (IS_SOEXT(ext)) {
+	        if (rb_feature_p(ftptr, ext, FALSE, FALSE, &loading)) {
+		    if (loading) *path = rb_str_new2(loading);
+		    return 's';
+	        }
+	        tmp = rb_str_new(RSTRING_PTR(fname), ext - RSTRING_PTR(fname));
+    #ifdef DLEXT2
+	        OBJ_FREEZE(tmp);
+	        if (rb_find_file_ext_safe(&tmp, loadable_ext + 1, safe_level)) {
+		    ext = strrchr(ftptr = RSTRING_PTR(tmp), '.');
+		    if (!rb_feature_p(ftptr, ext, FALSE, TRUE, &loading) || loading)
+		        *path = tmp;
+		    return 's';
+	        }
+    #else
+	        rb_str_cat2(tmp, DLEXT);
+	        OBJ_FREEZE(tmp);
+	        if ((tmp = rb_find_file_safe(tmp, safe_level)) != 0) {
+		    ext = strrchr(ftptr = RSTRING_PTR(tmp), '.');
+		    if (!rb_feature_p(ftptr, ext, FALSE, TRUE, &loading) || loading)
+		        *path = tmp;
+		    return 's';
+	        }
+    #endif
 	    }
-	    return 0;
-	}
-	else if (IS_SOEXT(ext)) {
-	    if (rb_feature_p(ftptr, ext, FALSE, FALSE, &loading)) {
-		if (loading) *path = rb_str_new2(loading);
-		return 's';
+	    else if (IS_DLEXT(ext)) {
+	        if (rb_feature_p(ftptr, ext, FALSE, FALSE, &loading)) {
+		    if (loading) *path = rb_str_new2(loading);
+		    return 's';
+	        }
+	        if ((tmp = rb_find_file_safe(fname, safe_level)) != 0) {
+		    ext = strrchr(ftptr = RSTRING_PTR(tmp), '.');
+		    if (!rb_feature_p(ftptr, ext, FALSE, TRUE, &loading) || loading)
+		        *path = tmp;
+		    return 's';
+	        }
 	    }
-	    tmp = rb_str_new(RSTRING_PTR(fname), ext - RSTRING_PTR(fname));
-#ifdef DLEXT2
-	    OBJ_FREEZE(tmp);
-	    if (rb_find_file_ext_safe(&tmp, loadable_ext + 1, safe_level)) {
-		ext = strrchr(ftptr = RSTRING_PTR(tmp), '.');
-		if (!rb_feature_p(ftptr, ext, FALSE, TRUE, &loading) || loading)
-		    *path = tmp;
-		return 's';
-	    }
-#else
-	    rb_str_cat2(tmp, DLEXT);
-	    OBJ_FREEZE(tmp);
-	    if ((tmp = rb_find_file_safe(tmp, safe_level)) != 0) {
-		ext = strrchr(ftptr = RSTRING_PTR(tmp), '.');
-		if (!rb_feature_p(ftptr, ext, FALSE, TRUE, &loading) || loading)
-		    *path = tmp;
-		return 's';
-	    }
-#endif
-	}
-	else if (IS_DLEXT(ext)) {
-	    if (rb_feature_p(ftptr, ext, FALSE, FALSE, &loading)) {
-		if (loading) *path = rb_str_new2(loading);
-		return 's';
-	    }
-	    if ((tmp = rb_find_file_safe(fname, safe_level)) != 0) {
-		ext = strrchr(ftptr = RSTRING_PTR(tmp), '.');
-		if (!rb_feature_p(ftptr, ext, FALSE, TRUE, &loading) || loading)
-		    *path = tmp;
-		return 's';
-	    }
-	}
     }
     else if ((ft = rb_feature_p(ftptr, 0, FALSE, FALSE, &loading)) == 'r') {
-	if (loading) *path = rb_str_new2(loading);
-	return 'r';
+	    if (loading) *path = rb_str_new2(loading);
+	    return 'r';
     }
     tmp = fname;
     type = rb_find_file_ext_safe(&tmp, loadable_ext, safe_level);
@@ -562,41 +628,43 @@ rb_require_safe(VALUE fname, int safe)
     volatile VALUE errinfo = th->errinfo;
     int state;
     struct {
-	int safe;
+	    int safe;
     } volatile saved;
     char *volatile ftptr = 0;
 
     PUSH_TAG();
     saved.safe = rb_safe_level();
     if ((state = EXEC_TAG()) == 0) {
-	VALUE path;
-	long handle;
-	int found;
+	    VALUE path;
+	    long handle;
+	    int found;
 
-	rb_set_safe_level_force(safe);
-	FilePathValue(fname);
-	rb_set_safe_level_force(0);
-	found = search_required(fname, &path, safe);
-	if (found) {
-	    if (!path || !(ftptr = load_lock(RSTRING_PTR(path)))) {
-		result = Qfalse;
-	    }
-	    else {
-		switch (found) {
-		  case 'r':
-		    rb_load_internal(path, 0);
-		    break;
+	    rb_set_safe_level_force(safe);
+	    FilePathValue(fname);
+	    rb_set_safe_level_force(0);
+	    found = search_required(fname, &path, safe); /* Call to search required */
+	    if (found) {
+	        if (!path || !(ftptr = load_lock(RSTRING_PTR(path)))) {
+		    result = Qfalse;
+	        }
+	        else {
+		    switch (found) {
+		      case 'r':
+		        rb_load_internal(path, 0);
+		        break;
 
-		  case 's':
-		    handle = (long)rb_vm_call_cfunc(rb_vm_top_self(), load_ext,
-						    path, 0, path, path);
-		    rb_ary_push(ruby_dln_librefs, LONG2NUM(handle));
-		    break;
-		}
-		rb_provide_feature(path);
-		result = Qtrue;
+		      case 's':
+		        handle = (long)rb_vm_call_cfunc(rb_vm_top_self(), load_ext,
+						        path, 0, path, path);
+		        rb_ary_push(ruby_dln_librefs, LONG2NUM(handle));
+		        break;
+		    }
+		    rb_provide_feature(path);
+		    result = Qtrue;
+	        }
 	    }
-	}
+
+
     }
     POP_TAG();
     load_unlock(ftptr, !state);
@@ -733,6 +801,7 @@ Init_load()
 {
 #undef rb_intern
 #define rb_intern(str) rb_intern2(str, strlen(str))
+    hash_table = rb_hash_new ();
     rb_vm_t *vm = GET_VM();
     static const char var_load_path[] = "$:";
     ID id_load_path = rb_intern2(var_load_path, sizeof(var_load_path)-1);
