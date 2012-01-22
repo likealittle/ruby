@@ -26,7 +26,6 @@ static const char *const loadable_ext[] = {
     0
 };
 
-st_table *dollar_quote;
 // Function to //print an array of ruby strings from "VALUE arr".
 static void print_str_ary(VALUE ary)
 {
@@ -86,6 +85,12 @@ get_loaded_features(void)
     return GET_VM()->loaded_features;
 }
 
+static st_table *
+get_dollar_quote(void)
+{
+   //printf("Function 6"); 
+    return GET_VM()-> dollar_quote;
+}
 static st_table *
 get_loading_table(void)
 {
@@ -179,14 +184,14 @@ static int rb_feature_p(const char *feature, const char *ext, int rb, int expand
     //print_str_ary(features);
     char *which = feature ;
     int found = 0 ; 
-    found = st_lookup( dollar_quote , feature , &found ) ; 
+    found = st_lookup( get_dollar_quote() , feature , &found ) ; 
     if ( !ext && ! found ){
         for ( i = 0 ; loadable_ext[i] ; i ++ ){
             char t[MAX_FILE_NAME_LENGTH];
             strcpy(t,feature);
             strcat(t,loadable_ext[i]);
             int temp;
-            temp = st_lookup( dollar_quote , t , &temp );
+            temp = st_lookup( get_dollar_quote() , t , &temp );
             //printf("Checking with %s\n" , t ); 
             if ( temp ){
                 found = 1 ;
@@ -211,7 +216,7 @@ static int rb_feature_p(const char *feature, const char *ext, int rb, int expand
             if (ext){
                 int temp = 0 ;
                 //printf("Checking with %s\n" , s ); 
-                temp = st_lookup( dollar_quote , s , &temp );
+                temp = st_lookup( get_dollar_quote() , s , &temp );
                 if ( temp ){
                     found = 1 ;
                     which = s ;
@@ -227,7 +232,7 @@ static int rb_feature_p(const char *feature, const char *ext, int rb, int expand
                     //printf("111. Checking with %s\n" , t ); 
                     strcat(t,loadable_ext[j] );
                     int temp;
-                    temp = st_lookup( dollar_quote , t , &temp );
+                    temp = st_lookup( get_dollar_quote() , t , &temp );
                     //printf("222. Checking with %s\n" , t ); 
                     if ( temp ){
                         found = 1 ;
@@ -809,7 +814,7 @@ rb_require_safe(VALUE fname, int safe)
                 }
                 // Add to our hash table!
                 //printf("Adding %s to the hash table!\n" , StringValuePtr(path) );
-                st_add_direct( dollar_quote , StringValuePtr(path) , 42 ); 
+                st_add_direct( get_dollar_quote() , StringValuePtr(path) , 42 ); 
                 rb_provide_feature(path);
                 result = Qtrue;
             }
@@ -837,21 +842,6 @@ rb_require_safe(VALUE fname, int safe)
 VALUE
 rb_require(const char *fname)
 {
-    //printf("\n\nRB_Require! Elements in $\"= ") ;
-    //print_str_ary(get_loaded_features());
-
-    VALUE features = get_loaded_features();
-    //print_str_ary( features );
-    
-    int i ;
-    for (i = 0; i < RARRAY_LEN(features); ++i) {
-        // Pointer to i'th feature
-        VALUE v = RARRAY_PTR(features)[i];
-        // String value of the pointer
-        char *f = StringValue(v);
-        // Add to the hash table!
-        st_add_direct( dollar_quote , (st_data_t) ( f ) , (st_data_t)(42) ) ; 
-    }
     VALUE fn = rb_str_new2(fname);
     OBJ_FREEZE(fn);
     return rb_require_safe(fn, rb_safe_level());
@@ -993,13 +983,9 @@ Init_load()
     //print_str_ary( vm -> loaded_features );
 
 
-    dollar_quote = st_init_strtable();
+    vm -> dollar_quote = st_init_strtable();
 
-    st_add_direct( dollar_quote , "enumerator.so" , 42 );
-
-
-
- 
+    st_add_direct( get_dollar_quote() , "enumerator.so" , 42 );
 
     rb_define_global_function("load", rb_f_load, -1);
     rb_define_global_function("require", rb_f_require, 1);

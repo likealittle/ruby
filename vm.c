@@ -1507,9 +1507,13 @@ rb_vm_mark(void *ptr)
 	RUBY_MARK_UNLESS_NULL(vm->coverages);
 	rb_gc_mark_locations(vm->special_exceptions, vm->special_exceptions + ruby_special_error_count);
 
-	if (vm->loading_table) {
-	    rb_mark_tbl(vm->loading_table);
+	if (vm -> loading_table) {
+	    rb_mark_tbl(vm -> loading_table);
 	}
+	if (vm->dollar_quote) {
+	    rb_mark_tbl(vm -> dollar_quote);
+	}
+
 
 	mark_event_hooks(vm->event_hooks);
 

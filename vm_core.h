@@ -295,6 +295,7 @@ typedef struct rb_vm_struct {
     VALUE top_self;
     VALUE load_path;
     VALUE loaded_features;
+    struct st_table *dollar_quote;
     struct st_table *loading_table;
 
     /* signal */
