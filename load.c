@@ -7,7 +7,6 @@
 #include "dln.h"
 #include "eval_intern.h"
 #include "assert.h"
-
 VALUE ruby_dln_librefs;
 
 #define IS_RBEXT(e) (strcmp(e, ".rb") == 0)
@@ -27,13 +26,10 @@ static const char *const loadable_ext[] = {
     0
 };
 
-#define STR(x) (#x) 
-
-
+st_table *dollar_quote;
 // Function to //print an array of ruby strings from "VALUE arr".
 static void print_str_ary(VALUE ary)
 {
-    //printf("Function 1"); 
     long n = RARRAY_LEN(ary);
     long i;
     printf("\n{");
@@ -98,8 +94,7 @@ get_loading_table(void)
 }
 
 // FIXME: For adding files which are in the default ruby path! Not useful for the problem statement. But needed for the patch. 
-static VALUE loaded_feature_path(const char *name, long vlen, const char *feature, long len, int type, VALUE load_path)
-{
+static VALUE loaded_feature_path(const char *name, long vlen, const char *feature, long len, int type, VALUE load_path){
     //printf("Function 7"); 
     long i;
     // Loop through every element in $:
@@ -194,31 +189,40 @@ static int rb_feature_p(const char *feature, const char *ext, int rb, int expand
             if (expanded) continue;
             if (!load_path) 
                 load_path = rb_get_expanded_load_path();
-            if (!(p = loaded_feature_path(f, n, feature, len, type, load_path)))
+            p = loaded_feature_path(f, n, feature, len, type, load_path);
+            //printf("feature = %s and p = %s\n" , feature , p ) ; 
+            if (!p)
                 continue;
             // Not going to come here for the current problem statement. 
             expanded = 1;
             f += RSTRING_LEN(p) + 1;
         }else{
-            //printf("Found the feature in $\"!\n");
-            already_found = 1 ; 
+            if ( strlen(feature) == n ) 
+                already_found = 1 ; 
         }
-            // All this happens only when the feature is already found in $"
-            if (!*(e = f + len)) {
-                if (ext) continue;
-                return 'u';
-            }
-            if (*e != '.') continue;
-            if ((!rb || !ext) && (IS_SOEXT(e) || IS_DLEXT(e))) {
-                return 's';
-            }
-            if ((rb || !ext) && (IS_RBEXT(e))) {
-                //printf("Returning R!\n");
-                return 'r';
-            }
+        // All this happens only when the feature is already found in $"
+        e = f + len ; 
+        //print_str_ary(get_loaded_features() ); 
+        //printf("feature = %s e = %s f = %s len = %d strlen(feature) = %d elen = %d\n" , feature , e , f , len , strlen(feature) ,elen) ; 
+        if (!*e) {
+            if (ext) continue;
+            return 'u';
+        }
+        if (*e != '.') continue;
+        if ((!rb || !ext) && (IS_SOEXT(e) || IS_DLEXT(e))) {
+            return 's';
+        }
+        if ((rb || !ext) && (IS_RBEXT(e))) {
+            printf("Could find the %s feature in the trie!\n" , feature);
+            return 'r';
+        }
     }
-    assert(already_found == 0 ) ; 
-    printf("\n feature trying load = %s\n" ,  feature);
+    assert( already_found == 0 ) ; 
+    //printf("\n\nfeature = %s e = %s f = %s len = %d found = %d\n", feature , e , f , len , already_found ); 
+    if ( already_found ){
+        printf("This fucked up the flow!  %s\n" , feature);
+    }
+    printf("\nCouldn't find %s feature in the trie!\n" ,  feature);
     loading_tbl = get_loading_table();
     if (loading_tbl) {
         f = 0;
@@ -230,16 +234,17 @@ static int rb_feature_p(const char *feature, const char *ext, int rb, int expand
             fs.load_path = load_path ? load_path : rb_get_load_path();
             fs.result = 0;
             st_foreach(loading_tbl, loaded_feature_path_i, (st_data_t)&fs);
+            printf("fs.result = %s\n" , fs.result);
             if ((f = fs.result) != 0) {
-                //printf("fs.result = %s\n" , fs.result);
                 if (fn) *fn = f;
-                goto loading;
+                printf("1. Adding %s to the $\n" , feature);
+                if (!ext) return 'u';
+                return !IS_RBEXT(ext) ? 's' : 'r';
             }
         }
         if (st_get_key(loading_tbl, (st_data_t)feature, &data)) {
             if (fn) *fn = (const char*)data;
-loading:
-            printf("Adding %s to the $\n" , feature);
+            printf("1. Adding %s to the $\n" , feature);
             if (!ext) return 'u';
             return !IS_RBEXT(ext) ? 's' : 'r';
         }
@@ -259,14 +264,14 @@ loading:
                 if (st_get_key(loading_tbl, (st_data_t)buf, &data)) {
                     rb_str_resize(bufstr, 0);
                     if (fn) *fn = (const char*)data;
-                    printf("Adding %s to the $\n" , feature);
+                    printf("2. Adding %s to the $\n" , feature);
                     return i ? 's' : 'r';
                 }
             }
             rb_str_resize(bufstr, 0);
         }
     }
-    printf("\n2. Couldn't load the feature %s\n" , feature) ; 
+    printf("\n3. Couldn't load the feature %s\n" , feature) ; 
     return 0;
 }
 
@@ -306,9 +311,7 @@ rb_feature_provided(const char *feature, const char **loading)
 }
 
 static void
-rb_provide_feature(VALUE feature)
-{
-    //printf("Function 12"); 
+rb_provide_feature(VALUE feature){
     rb_ary_push(get_loaded_features(), feature);
 }
 
@@ -530,8 +533,8 @@ rb_f_require_relative(VALUE obj, VALUE fname)
 
 static int search_required(VALUE fname, volatile VALUE *path, int safe_level)
 {
-    printf("\n$:=");
-    print_str_ary(rb_get_load_path() );
+    //printf("\n$:=");
+    //print_str_ary(rb_get_load_path() );
     //printf("Function 22"); 
     //printf("Searching required...\n");
     VALUE tmp;
@@ -567,6 +570,8 @@ static int search_required(VALUE fname, volatile VALUE *path, int safe_level)
                 return 'r';
             }
             //printf("Returning zero then!\n");
+            printf("\n\n1. After Addition");
+            print_str_ary( get_loaded_features() ); 
             return 0;
         }
         // Don't worry about this part now! This part deals with shared objects etc which are not part of the problem statement!
@@ -625,8 +630,8 @@ static int search_required(VALUE fname, volatile VALUE *path, int safe_level)
             if (ft)
                 break;
             ftptr = RSTRING_PTR(tmp);
-            printf("\nAfter1");
-            print_str_ary( get_loaded_features() ); 
+            //printf("\nAfter1");
+            //print_str_ary( get_loaded_features() ); 
             return rb_feature_p(ftptr, 0, FALSE, TRUE, 0);
 
         default:
@@ -638,7 +643,7 @@ static int search_required(VALUE fname, volatile VALUE *path, int safe_level)
                 break;
             *path = tmp;
     }
-    printf("\nAfter2");
+    printf("\n\n2. After addition");
     print_str_ary( get_loaded_features() ); 
     return type ? 's' : 'r';
 }
@@ -685,14 +690,12 @@ rb_require_safe(VALUE fname, int safe)
         rb_set_safe_level_force(0);
         found = search_required(fname, &path, safe);
         //printf("Found = %d\n" , found) ; 
-    printf("\nBefore:");
-    print_str_ary(get_loaded_features() );
-        printf("Found = %c\n" , found ) ; 
+        printf("\nBefore:");
+        print_str_ary(get_loaded_features() );
+        //printf("Found = %c\n" , found ) ; 
         if (found) {
-            //printf("\nPath returned by search_required = "); 
-            int i ;
-            for ( i = 0 ; i < 20 ; i ++ )
-                //printf("%c ", path+i );
+            if ( path )
+                printf("\nPath returned by search_required = %s\n" , RSTRING_PTR(path)); 
             if (!path || !(ftptr = load_lock(RSTRING_PTR(path)))) {
                 //printf("Come 1\n");
                 result = Qfalse;
@@ -713,6 +716,8 @@ rb_require_safe(VALUE fname, int safe)
                 rb_provide_feature(path);
                 result = Qtrue;
             }
+            printf("\nAfter:");
+            print_str_ary(get_loaded_features() );
         }
     }
     POP_TAG();
@@ -728,8 +733,6 @@ rb_require_safe(VALUE fname, int safe)
     }
 
     th->errinfo = errinfo;
-    printf("\nAfter:");
-    print_str_ary(get_loaded_features() );
 
     return result;
 }
@@ -861,6 +864,8 @@ Init_load()
 #undef rb_intern
 #define rb_intern(str) rb_intern2(str, strlen(str))
     rb_vm_t *vm = GET_VM();
+    printf("I happen, ok?");
+
     static const char var_load_path[] = "$:";
     ID id_load_path = rb_intern2(var_load_path, sizeof(var_load_path)-1);
 
@@ -875,6 +880,26 @@ Init_load()
 
     //printf("Loaded variables = " ) ; 
     //print_str_ary( vm -> loaded_features );
+
+
+    dollar_quote = st_init_strtable();
+
+
+
+    VALUE features = get_loaded_features();
+    //print_str_ary( features );
+    
+    int i ;
+    for (i = 0; i < RARRAY_LEN(features); ++i) {
+        // Pointer to i'th feature
+        VALUE v = RARRAY_PTR(features)[i];
+        // String value of the pointer
+        char *f = StringValue(v);
+        // Add to the hash table!
+        st_add_direct( dollar_quote , (st_data_t) ( f ) , (st_data_t)(42) ) ; 
+    }
+
+ 
 
     rb_define_global_function("load", rb_f_load, -1);
     rb_define_global_function("require", rb_f_require, 1);
