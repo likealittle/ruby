@@ -93,7 +93,8 @@ get_loading_table(void)
 }
 
 static VALUE
-loaded_feature_path(const char *name, long vlen, const char *feature, long len, int type, VALUE load_path){
+loaded_feature_path(const char *name, long vlen, const char *feature, long len, int type, VALUE load_path)
+{
     long i;
    
     for (i = 0; i < RARRAY_LEN(load_path); ++i) {
@@ -168,26 +169,23 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
     int found = 0 ; 
     found = st_lookup( get_dollar_quote() , feature , &found ) ; 
     if ( !ext && !found ){
-        for ( i = 0 ; loadable_ext[i] ; i ++ ){
-            
-            // TODO Gotta make it Dynamically allocated
-            
-            char t[MAX_FILE_NAME_LENGTH];
+        for ( i = 0 ; loadable_ext[i] ; i ++ ) {
+
+            char *t = (char *) malloc( strlen(feature) + strlen(loadable_ext[i]) + 1 );
             strcpy(t,feature);
             strcat(t,loadable_ext[i]);
             int temp;
             temp = st_lookup( get_dollar_quote() , t , &temp );
-            if ( temp ){
+            if ( temp ) {
                 found = 1 ;
                 expanded = 1 ; 
                 which = t ;
                 break;
             }
-
         }
     }
 
-    if ( !expanded && !found ){
+    if ( !expanded && !found ) {
         load_path = rb_get_expanded_load_path();
         for (i = 0; i < RARRAY_LEN(load_path) && !found; ++i) {
             VALUE path = RARRAY_PTR(load_path)[i];
@@ -206,9 +204,7 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
             }else{
                 for ( j = 0 ; loadable_ext[j] ; j++ ){
                     
-                    //TODO DMA-fix
-                    
-                    char t[MAX_FILE_NAME_LENGTH];
+                    char *t = (char *) malloc( strlen(s) + strlen(loadable_ext[j]) + 1 );
                     strcpy(t,s);
                     strcat(t,loadable_ext[j] );
                     int temp;
