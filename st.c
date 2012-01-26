@@ -968,6 +968,7 @@ st_reverse_foreach(st_table *table, int (*func)(ANYARGS), st_data_t arg)
  */
 #define FNV_32_PRIME 0x01000193
 
+
 #ifdef ST_USE_FNV1
 static st_index_t
 strhash(st_data_t arg)
@@ -1177,7 +1178,6 @@ st_hash(const void *ptr, size_t len, st_index_t h)
 	h *= MurmurMagic;
 #endif
     }
-
     return murmur_finish(h);
 }
 

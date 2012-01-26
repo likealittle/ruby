@@ -17,6 +17,8 @@ VALUE ruby_dln_librefs;
 #define IS_DLEXT(e) (strcmp(e, DLEXT) == 0)
 #endif
 
+#define do_hash(key,table) (st_index_t)(*(table)->type->hash)((key))
+
 
 static const char *const loadable_ext[] = {
   ".rb", DLEXT,
@@ -25,6 +27,54 @@ static const char *const loadable_ext[] = {
   #endif
   0
 };
+
+
+// TODO : Refactor this hash code - better to use in build strhash
+/*
+ * 32 bit FNV-1 and FNV-1a non-zero initial basis
+ *
+ * The FNV-1 initial basis is the FNV-0 hash of the following 32 octets:
+ *
+ *              chongo <Landon Curt Noll> /\../\
+ *
+ * NOTE: The \'s above are not back-slashing escape characters.
+ * They are literal ASCII  backslash 0x5c characters.
+ *
+ * NOTE: The FNV-1a initial basis is the same value as FNV-1 by definition.
+ */
+#define FNV1_32A_INIT 0x811c9dc5
+
+/*
+ * 32 bit magic FNV-1a prime
+ */
+#define FNV_32_PRIME 0x01000193
+
+static unsigned long
+mystrhash(VALUE arg)
+{
+  register const char *string = RSTRING_PTR(arg);
+  
+  register st_index_t hval = FNV1_32A_INIT;
+  
+  /*
+   * FNV-1a hash each octet in the buffer
+   */
+  while (*string) 
+  {
+    /* xor the bottom with the current octet */
+    hval ^= (unsigned int)*string++;
+    
+    /* multiply by the 32 bit FNV magic prime mod 2^32 */
+    hval *= FNV_32_PRIME;
+  }
+  return hval;
+}
+
+static const struct st_hash_type type_strmyhash = {
+  strcmp,
+  mystrhash,
+};
+
 
 VALUE
 rb_get_load_path(void)
@@ -51,11 +101,11 @@ rb_get_expanded_load_path(void)
 }
 
 static void
-print_str_ary(VALUE ary)
+print_str_ary(char * name, VALUE ary)
 {
   long n = RARRAY_LEN(ary);
   long i;
-  printf("{ ");
+  printf("(%s){ ", name);
   
   for(i =0; i < n; i++)
   {
@@ -102,12 +152,16 @@ get_loaded_features(void)
   
   st_foreach(st, push_key, ary);
   VALUE ret = GET_VM()->loaded_features;
-  //print_str_ary(ret);
-  //print_str_ary(ary);  
-  //printf("DEBUG:LAL: %d %d\n", RARRAY_PTR(ret)[0], RBASIC(ary)->klass);
-  
-  // return GET_VM()->loaded_features;
   return ary;
+}
+
+static void 
+set_loaded_features(VALUE val, ID id, VALUE *var, struct global_entry * entry)
+{
+  printf("Inside feature setter!!\n");
+  struct st_table *st;
+  st = get_loaded_features_hash();
+  st_insert(st, val, Qtrue);
 }
 
 static st_table *
@@ -290,14 +344,10 @@ rb_feature_provided(const char *feature, const char **loading)
 static void
 rb_provide_feature(VALUE feature)
 {
-  //     char * now = RSTRING_PTR(feature);
-  //     printf("DEBUG : LAL : %s\n", now);
   rb_ary_push(GET_VM()->loaded_features, feature);
-  //     VALUE vv = rb_usascii_str_new(now, strlen(now));
-  //     char * again = RSTRING_PTR(vv);
-  //     printf("DEBUG2 : LAL : %s\n", again);
   struct st_table * st = get_loaded_features_hash();
-  st_insert(st, feature, Qtrue);
+  int code = st_insert(st, feature, Qtrue);
+  
 }
 
 void
@@ -797,10 +847,10 @@ Init_load()
     rb_alias_variable(rb_intern("$LOAD_PATH"), id_load_path);
     vm->load_path = rb_ary_new();
     
-    rb_define_virtual_variable("$\"", get_loaded_features, 0);
-    rb_define_virtual_variable("$LOADED_FEATURES", get_loaded_features, 0);
+    rb_define_virtual_variable("$\"", get_loaded_features, set_loaded_features);
+    rb_define_virtual_variable("$LOADED_FEATURES", get_loaded_features, set_loaded_features);
     vm->loaded_features = rb_ary_new();
-    vm->loaded_features_hash = st_init_strcasetable();
+    vm->loaded_features_hash = st_init_table(&type_strmyhash);
     
     rb_define_global_function("load", rb_f_load, -1);
     rb_define_global_function("require", rb_f_require, 1);
