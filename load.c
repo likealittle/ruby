@@ -69,9 +69,15 @@ mystrhash(VALUE arg)
   }
   return hval;
 }
+static int
+mystrcmp(VALUE str1, VALUE str2)
+{
+  char *s1 = RSTRING_PTR(str1), *s2 = RSTRING_PTR(str2);
+  return strcmp(s1, s2);
+}
 
 static const struct st_hash_type type_strmyhash = {
-  strcmp,
+  mystrcmp,
   mystrhash,
 };
 
@@ -151,7 +157,6 @@ get_loaded_features(void)
   VALUE ary = rb_ary_new();
   
   st_foreach(st, push_key, ary);
-  VALUE ret = GET_VM()->loaded_features;
   return ary;
 }
 
@@ -220,8 +225,89 @@ loaded_feature_path_i(st_data_t v, st_data_t b, st_data_t f)
 }
 
 static int
+provided_feature(VALUE file)
+{
+  struct st_table *st;
+  st = get_loaded_features_hash();
+  int ret= st_lookup(st, file, 0);
+  //printf("Provided feature or not %s ans ans is %d\n", RSTRING_PTR(file), ret);
+  return ret;
+}
+
+static int
+rb_my_feature2_p(const char *feature, int len, const char *ext, int expanded)
+{
+  VALUE file, load_path, query;
+  long i;
+  if(ext)
+    file = rb_str_append(rb_str_new(feature, len), rb_str_new(ext, strlen(ext)));
+  else
+    file = rb_str_new(feature, len);
+  
+  if(provided_feature(file))
+    return 1;
+  
+  load_path = rb_get_expanded_load_path();
+//   printf("\n\n");
+//   
+//    print_str_ary("load path", load_path);
+//    print_str_ary("features", get_loaded_features());
+//    printf("And file was %s\n", RSTRING_PTR(file));
+  
+  for (i = 0; i < RARRAY_LEN(load_path); ++i) 
+  {
+    VALUE p = RARRAY_PTR(load_path)[i];
+    char *s = RSTRING_PTR(p);
+    VALUE pp = rb_str_append(rb_str_new(s, strlen(s)), rb_str_new("/", 1));
+    pp = rb_str_append(pp, file);
+    
+    if(!expanded)
+      query = rb_file_expand_path(file, p);
+    else
+      query = pp;
+//     printf("Checkinglaod path : yo = %s\n",  RSTRING_PTR(query));    
+    if(provided_feature(query)) 
+      return 1;
+  }
+  return 0;
+}
+
+static int
+rb_my_feature_p(const char *feature, const char *ext, int rb, int expanded, const char **fn)
+{
+  VALUE v, features, p, load_path = 0;
+  const char *f, *e;
+  long i, len, elen, n;
+  st_table *loading_tbl;
+  st_data_t data;
+  int type;  
+  
+  if (fn) *fn = 0;
+  if (ext) 
+  {
+    elen = strlen(ext);
+    len = strlen(feature) - elen;
+    type = rb ? 'r' : 's';
+    if(rb_my_feature2_p(feature, len, ext, expanded)) 
+      return type;
+  }
+  else 
+  {
+    len = strlen(feature);
+    elen = 0;
+    if(rb_my_feature2_p(feature, len, 0, expanded)) return 'u';
+    if(rb_my_feature2_p(feature, len, ".so", expanded)) return 's';
+    if(rb_my_feature2_p(feature, len, ".rb", expanded)) return 'r';
+  }
+  return 0;
+}
+
+static int
 rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const char **fn)
 {
+  int base = rb_my_feature_p(feature, ext, rb, expanded, fn);
+  if(base) return base;
+  
   VALUE v, features, p, load_path = 0;
   const char *f, *e;
   long i, len, elen, n;
@@ -240,31 +326,39 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
     elen = 0;
     type = 0;
   }
-  features = get_loaded_features();
-  for (i = 0; i < RARRAY_LEN(features); ++i) {
-    v = RARRAY_PTR(features)[i];
-    f = StringValuePtr(v);
-    if ((n = RSTRING_LEN(v)) < len) continue;
-    if (strncmp(f, feature, len) != 0) {
-      if (expanded) continue;
-      if (!load_path) load_path = rb_get_expanded_load_path();
-      if (!(p = loaded_feature_path(f, n, feature, len, type, load_path)))
-	continue;
-      expanded = 1;
-      f += RSTRING_LEN(p) + 1;
-    }
-    if (!*(e = f + len)) {
-      if (ext) continue;
-      return 'u';
-    }
-    if (*e != '.') continue;
-    if ((!rb || !ext) && (IS_SOEXT(e) || IS_DLEXT(e))) {
-      return 's';
-    }
-    if ((rb || !ext) && (IS_RBEXT(e))) {
-      return 'r';
-    }
-  }
+//   int base2 = 0;
+//   
+//   features = get_loaded_features();
+//   for (i = 0; i < RARRAY_LEN(features); ++i) {
+//     v = RARRAY_PTR(features)[i];
+//     f = StringValuePtr(v);
+//     if ((n = RSTRING_LEN(v)) < len) continue;
+//     if (strncmp(f, feature, len) != 0) {
+//       if (expanded) continue;
+//       if (!load_path) load_path = rb_get_expanded_load_path();
+//       if (!(p = loaded_feature_path(f, n, feature, len, type, load_path)))
+// 	continue;
+//       expanded = 1;
+//       f += RSTRING_LEN(p) + 1;
+//     }
+//     if (!*(e = f + len)) {
+//       if (ext) continue;
+//       base2 = 'u'; break;
+//     }
+//     if (*e != '.') continue;
+//     if ((!rb || !ext) && (IS_SOEXT(e) || IS_DLEXT(e))) {
+//       base2 = 's'; break;//return 's';
+//     }
+//     if ((rb || !ext) && (IS_RBEXT(e))) {
+//       base2 = 'r'; break; //return 'r';
+//     }
+//   }
+//   
+//   if(base != base2)
+//   {
+//     printf("Feature was %s, base1 was %d and base2 was %d & expanded was %d\n", feature, base, base2, expanded);
+//   }
+//   if(base) return base;
   loading_tbl = get_loading_table();
   if (loading_tbl) {
     f = 0;
@@ -563,15 +657,18 @@ search_required(VALUE fname, volatile VALUE *path, int safe_level)
   VALUE tmp;
   char *ext, *ftptr;
   int type, ft = 0;
-  const char *loading;
+  const char *loading;  
   
   *path = 0;
   ext = strrchr(ftptr = RSTRING_PTR(fname), '.');
-  if (ext && !strchr(ext, '/')) {
-    if (IS_RBEXT(ext)) {
-      if (rb_feature_p(ftptr, ext, TRUE, FALSE, &loading)) {
+  if (ext && !strchr(ext, '/')) 
+  {
+    if (IS_RBEXT(ext)) 
+    {
+      if (rb_feature_p(ftptr, ext, TRUE, FALSE, &loading)) 
+      {
 	if (loading) *path = rb_str_new2(loading);
-		     return 'r';
+	  return 'r';
       }
       if ((tmp = rb_find_file_safe(fname, safe_level)) != 0) {
 	ext = strrchr(ftptr = RSTRING_PTR(tmp), '.');
@@ -847,8 +944,8 @@ Init_load()
     rb_alias_variable(rb_intern("$LOAD_PATH"), id_load_path);
     vm->load_path = rb_ary_new();
     
-    rb_define_virtual_variable("$\"", get_loaded_features, set_loaded_features);
-    rb_define_virtual_variable("$LOADED_FEATURES", get_loaded_features, set_loaded_features);
+    rb_define_virtual_variable("$\"", get_loaded_features, 0);
+    rb_define_virtual_variable("$LOADED_FEATURES", get_loaded_features, 0);
     vm->loaded_features = rb_ary_new();
     vm->loaded_features_hash = st_init_table(&type_strmyhash);
     
