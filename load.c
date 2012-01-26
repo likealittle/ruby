@@ -180,16 +180,27 @@ loaded_feature_path(const char *name, long vlen, const char *feature, long len,
 		    int type, VALUE load_path)
 {
   long i;
+  long plen;
+  const char *e;
   
+  if(vlen < len) return 0;
+  if (!strncmp(name+(vlen-len),feature,len)){
+    plen = vlen - len - 1;
+  } else {
+    for (e = name + vlen; name != e && *e != '.' && *e != '/'; --e);
+    if (*e!='.' ||
+      e-name < len ||
+      strncmp(e-len,feature,len) )
+      return 0;
+    plen = e - name - len - 1;
+  }
   for (i = 0; i < RARRAY_LEN(load_path); ++i) {
     VALUE p = RARRAY_PTR(load_path)[i];
     const char *s = StringValuePtr(p);
     long n = RSTRING_LEN(p);
     
-    if (vlen < n + len + 1) continue;
+    if (n != plen ) continue;
     if (n && (strncmp(name, s, n) || name[n] != '/')) continue;
-    if (strncmp(name + n + 1, feature, len)) continue;
-    if (name[n+len+1] && name[n+len+1] != '.') continue;
     switch (type) {
       case 's':
 	if (IS_DLEXT(&name[n+len+1])) return p;
@@ -203,7 +214,6 @@ loaded_feature_path(const char *name, long vlen, const char *feature, long len,
   }
   return 0;
 }
-
 struct loaded_feature_searching {
   const char *name;
   long len;
@@ -225,62 +235,41 @@ loaded_feature_path_i(st_data_t v, st_data_t b, st_data_t f)
 }
 
 static int
-provided_feature(VALUE file)
+rb_my_feature2_p(const char *feature, int len, const char *ext, struct st_table *st, VALUE load_path)
 {
-  struct st_table *st;
-  st = get_loaded_features_hash();
-  int ret= st_lookup(st, file, 0);
-  //printf("Provided feature or not %s ans ans is %d\n", RSTRING_PTR(file), ret);
-  return ret;
-}
-
-static int
-rb_my_feature2_p(const char *feature, int len, const char *ext, int expanded)
-{
-  VALUE file, load_path, query;
+  VALUE file, query;
   long i;
   if(ext)
     file = rb_str_append(rb_str_new(feature, len), rb_str_new(ext, strlen(ext)));
   else
     file = rb_str_new(feature, len);
   
-  if(provided_feature(file))
+  if(st_lookup(st, file, 0))
     return 1;
-  
-  load_path = rb_get_expanded_load_path();
-//   printf("\n\n");
-//   
-//    print_str_ary("load path", load_path);
-//    print_str_ary("features", get_loaded_features());
-//    printf("And file was %s\n", RSTRING_PTR(file));
   
   for (i = 0; i < RARRAY_LEN(load_path); ++i) 
   {
-    VALUE p = RARRAY_PTR(load_path)[i];
-    char *s = RSTRING_PTR(p);
-    VALUE pp = rb_str_append(rb_str_new(s, strlen(s)), rb_str_new("/", 1));
-    pp = rb_str_append(pp, file);
-    
-    if(!expanded)
-      query = rb_file_expand_path(file, p);
-    else
-      query = pp;
-//     printf("Checkinglaod path : yo = %s\n",  RSTRING_PTR(query));    
-    if(provided_feature(query)) 
+    VALUE p = RARRAY_PTR(load_path)[i];    
+    query = rb_file_expand_path(file, p);
+    if(st_lookup(st, query, 0)) 
       return 1;
   }
   return 0;
 }
 
+
 static int
-rb_my_feature_p(const char *feature, const char *ext, int rb, int expanded, const char **fn)
+rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const char **fn)
 {
-  VALUE v, features, p, load_path = 0;
+  VALUE v, p, load_path = 0;
   const char *f, *e;
   long i, len, elen, n;
   st_table *loading_tbl;
   st_data_t data;
-  int type;  
+  int type;
+  struct st_table * features;
+  features = get_loaded_features_hash();
+  load_path = rb_get_expanded_load_path();
   
   if (fn) *fn = 0;
   if (ext) 
@@ -288,81 +277,23 @@ rb_my_feature_p(const char *feature, const char *ext, int rb, int expanded, cons
     elen = strlen(ext);
     len = strlen(feature) - elen;
     type = rb ? 'r' : 's';
-    if(rb_my_feature2_p(feature, len, ext, expanded)) 
+    if(rb_my_feature2_p(feature, len, ext, features, load_path)) 
       return type;
   }
   else 
   {
     len = strlen(feature);
     elen = 0;
-    if(rb_my_feature2_p(feature, len, 0, expanded)) return 'u';
-    if(rb_my_feature2_p(feature, len, ".so", expanded)) return 's';
-    if(rb_my_feature2_p(feature, len, ".rb", expanded)) return 'r';
+    if(rb_my_feature2_p(feature, len, 0, features, load_path)) return 'u';
+    if(rb_my_feature2_p(feature, len, ".so", features, load_path)) return 's';
+    if(rb_my_feature2_p(feature, len, ".rb", features, load_path)) return 'r';
   }
-  return 0;
-}
-
-static int
-rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const char **fn)
-{
-  int base = rb_my_feature_p(feature, ext, rb, expanded, fn);
-  if(base) return base;
-  
-  VALUE v, features, p, load_path = 0;
-  const char *f, *e;
-  long i, len, elen, n;
-  st_table *loading_tbl;
-  st_data_t data;
-  int type;
-  
-  if (fn) *fn = 0;
-  if (ext) {
-    elen = strlen(ext);
-    len = strlen(feature) - elen;
-    type = rb ? 'r' : 's';
-  }
-  else {
-    len = strlen(feature);
-    elen = 0;
-    type = 0;
-  }
-//   int base2 = 0;
-//   
-//   features = get_loaded_features();
-//   for (i = 0; i < RARRAY_LEN(features); ++i) {
-//     v = RARRAY_PTR(features)[i];
-//     f = StringValuePtr(v);
-//     if ((n = RSTRING_LEN(v)) < len) continue;
-//     if (strncmp(f, feature, len) != 0) {
-//       if (expanded) continue;
-//       if (!load_path) load_path = rb_get_expanded_load_path();
-//       if (!(p = loaded_feature_path(f, n, feature, len, type, load_path)))
-// 	continue;
-//       expanded = 1;
-//       f += RSTRING_LEN(p) + 1;
-//     }
-//     if (!*(e = f + len)) {
-//       if (ext) continue;
-//       base2 = 'u'; break;
-//     }
-//     if (*e != '.') continue;
-//     if ((!rb || !ext) && (IS_SOEXT(e) || IS_DLEXT(e))) {
-//       base2 = 's'; break;//return 's';
-//     }
-//     if ((rb || !ext) && (IS_RBEXT(e))) {
-//       base2 = 'r'; break; //return 'r';
-//     }
-//   }
-//   
-//   if(base != base2)
-//   {
-//     printf("Feature was %s, base1 was %d and base2 was %d & expanded was %d\n", feature, base, base2, expanded);
-//   }
-//   if(base) return base;
   loading_tbl = get_loading_table();
-  if (loading_tbl) {
+  if (loading_tbl) 
+  {
     f = 0;
-    if (!expanded) {
+    if (!expanded) 
+    {
       struct loaded_feature_searching fs;
       fs.name = feature;
       fs.len = len;
@@ -375,13 +306,15 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
 	goto loading;
       }
     }
-    if (st_get_key(loading_tbl, (st_data_t)feature, &data)) {
+    if (st_get_key(loading_tbl, (st_data_t)feature, &data)) 
+    {
       if (fn) *fn = (const char*)data;
       loading:
       if (!ext) return 'u';
       return !IS_RBEXT(ext) ? 's' : 'r';
     }
-    else {
+    else 
+    {
       VALUE bufstr;
       char *buf;
       
