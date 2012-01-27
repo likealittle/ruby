@@ -863,6 +863,11 @@ rb_f_autoload_p(VALUE obj, VALUE sym)
   return rb_mod_autoload_p(klass, sym);
 }
 
+VALUE load_path_append(VALUE ary, VALUE item) {
+	//sync the hash with this ary
+	return rb_ary_push(ary, item);
+}
+
 void
 Init_load()
 {
@@ -877,6 +882,8 @@ Init_load()
     rb_alias_variable(rb_intern("$LOAD_PATH"), id_load_path);
     vm->load_path = rb_ary_new();
     
+    rb_define_singleton_method(vm->load_path, "<<", load_path_append, 1);
+
     rb_define_virtual_variable("$\"", get_loaded_features, 0);
     rb_define_virtual_variable("$LOADED_FEATURES", get_loaded_features, 0);
     vm->loaded_features = rb_ary_new();
