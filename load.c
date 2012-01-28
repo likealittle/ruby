@@ -814,6 +814,7 @@ VALUE
 append_load_path(VALUE ary, VALUE path)
 {
     /* This gets triggered everytime a $: << operation happens */
+    printf("FFSF\n");
     return rb_ary_push(ary, path);
 }
 
@@ -836,7 +837,7 @@ Init_load()
     rb_define_virtual_variable("$LOADED_FEATURES", get_loaded_features, 0);
     vm->loaded_features = rb_ary_new();    
     rb_define_singleton_method(vm->load_path, "<<", append_load_path, 1); 
-
+    rb_define_singleton_method(vm->load_path, "unshift", append_load_path, 1); 
     vm -> dollar_quote = st_init_strtable();
 
 

@@ -103,6 +103,20 @@ static void init_ids(struct cmdline_options *);
 
 #define src_encoding_index GET_VM()->src_encoding_index
 
+static void
+print_str_ary(VALUE ary)
+{
+    long n = RARRAY_LEN(ary);
+    long i;
+    printf("\n{\n");
+    
+    for(i =0; i < n; i++)
+    {
+        printf("%s,\n", RSTRING_PTR( RARRAY_PTR(ary)[i]));
+    }
+    printf("}\n");
+}
+
 static struct cmdline_options *
 cmdline_options_init(struct cmdline_options *opt)
 {
@@ -224,6 +238,7 @@ push_include(const char *path, VALUE (*filter)(VALUE))
 	    p++;
 	if (!*p) break;
 	for (s = p; *s && *s != sep; s = CharNext(s));
+	print_str_ary(load_path);
 	rb_ary_push(load_path, (*filter)(rubylib_mangled_path(p, s - p)));
 	p = s;
     }
