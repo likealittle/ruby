@@ -16,7 +16,6 @@ VALUE ruby_dln_librefs;
 #else
 #define IS_DLEXT(e) (strcmp(e, DLEXT) == 0)
 #endif
-#define MAX_FILE_NAME_LENGTH 1000
 
 static const char *const loadable_ext[] = {
     ".rb", DLEXT,
@@ -41,7 +40,8 @@ print_str_ary(VALUE ary)
 }
 
 static void
-print_str(VALUE ary){
+print_str(VALUE ary)
+{
     printf("%s\n" , RSTRING_PTR( ary));
 }
 
@@ -151,7 +151,7 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
     st_data_t data;
     int type;
 
-    int already_found = 0 ; 
+    int already_found = 0; 
     if (fn) *fn = 0;
     if (ext) {
         elen= strlen(ext);
@@ -192,24 +192,25 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
             char *s = StringValuePtr(path);
             strcat(s,"/");
             strcat(s,feature);
-            if (ext){
+            if (ext) {
                 int temp = 0 ;
                 temp = st_lookup( get_dollar_quote() , s , &temp );
-                if ( temp ){
+                if (temp) {
                     found = 1 ;
                     which = s ;
                     expanded = 1 ; 
                     break;
                 }
-            }else{
-                for ( j = 0 ; loadable_ext[j] ; j++ ){
+            }
+            else {
+                for ( j = 0 ; loadable_ext[j] ; j++ ) {
                     
                     char *t = (char *) malloc( strlen(s) + strlen(loadable_ext[j]) + 1 );
                     strcpy(t,s);
                     strcat(t,loadable_ext[j] );
                     int temp;
                     temp = st_lookup( get_dollar_quote() , t , &temp );
-                    if ( temp ){
+                    if (temp) {
                         found = 1 ;
                         expanded = 1 ; 
                         which = t ;
@@ -219,6 +220,7 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
             }
         }
     }
+    
     char ret = 0 ;
     if ( found  ){
         e = strrchr( which , '.'); 
@@ -318,9 +320,9 @@ rb_feature_provided(const char *feature, const char **loading)
 }
 
 static void
-rb_provide_feature(VALUE feature){
+rb_provide_feature(VALUE feature)
+{
     st_add_direct( get_dollar_quote() , StringValuePtr(feature) , 42 ); 
-    rb_ary_push(get_loaded_features(), feature);
 }
 
 void
@@ -808,6 +810,13 @@ rb_f_autoload_p(VALUE obj, VALUE sym)
     return rb_mod_autoload_p(klass, sym);
 }
 
+VALUE
+append_load_path(VALUE ary, VALUE path)
+{
+    /* This gets triggered everytime a $: << operation happens */
+    return rb_ary_push(ary, path);
+}
+
 void
 Init_load()
 {
@@ -825,9 +834,8 @@ Init_load()
 
     rb_define_virtual_variable("$\"", get_loaded_features, 0);
     rb_define_virtual_variable("$LOADED_FEATURES", get_loaded_features, 0);
-    vm->loaded_features = rb_ary_new();
-
-
+    vm->loaded_features = rb_ary_new();    
+    rb_define_singleton_method(vm->load_path, "<<", append_load_path, 1); 
 
     vm -> dollar_quote = st_init_strtable();
 
