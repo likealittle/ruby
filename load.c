@@ -316,7 +316,7 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
   int type;
   struct st_table * features;
   features = get_loaded_features_hash();
-  load_path = rb_load_path();
+  load_path = rb_get_load_path();
   
   if (fn) *fn = 0;
   if (ext) 
