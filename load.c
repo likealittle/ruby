@@ -275,6 +275,7 @@ rb_my_feature2_p(const char *feature, int len, const char *ext,
 
   if (st_lookup(lpfc, rb_str_new2(first_elem), paths_arr)) {
     //TODO sort paths_arr acc to priority
+    //if only appends are done to $:, this array is already sorted
     for (i = 0; i < RARRAY_LEN(*paths_arr); ++i) 
     {
       pri_path *p = RARRAY_PTR(*paths_arr)[i];
@@ -315,7 +316,7 @@ rb_feature_p(const char *feature, const char *ext, int rb, int expanded, const c
   int type;
   struct st_table * features;
   features = get_loaded_features_hash();
-  load_path = rb_get_expanded_load_path();
+  load_path = rb_load_path();
   
   if (fn) *fn = 0;
   if (ext) 
