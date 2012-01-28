@@ -62,6 +62,7 @@ char *strchr(char*,char);
 #include <ctype.h>
 
 #include "ruby/util.h"
+#include "dir.h"
 
 #if !defined HAVE_LSTAT && !defined lstat
 #define lstat stat
@@ -1873,7 +1874,7 @@ dir_foreach(int argc, VALUE *argv, VALUE io)
  *     Dir.entries("testdir")   #=> [".", "..", "config.h", "main.rb"]
  *
  */
-static VALUE
+VALUE
 dir_entries(int argc, VALUE *argv, VALUE io)
 {
     VALUE dir;

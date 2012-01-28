@@ -6,6 +6,7 @@
 #include "ruby/util.h"
 #include "dln.h"
 #include "eval_intern.h"
+#include "dir.h"
 
 VALUE ruby_dln_librefs;
 
@@ -865,6 +866,7 @@ rb_f_autoload_p(VALUE obj, VALUE sym)
 
 VALUE load_path_append(VALUE ary, VALUE item) {
 	//sync the hash with this ary
+	VALUE dir_entries = dir_entries(1, item, rb_cDir);
 	return rb_ary_push(ary, item);
 }
 
@@ -888,6 +890,7 @@ Init_load()
     rb_define_virtual_variable("$LOADED_FEATURES", get_loaded_features, 0);
     vm->loaded_features = rb_ary_new();
     vm->loaded_features_hash = st_init_table(&type_strmyhash);
+    vm->load_path_files_cache = st_init_table(&type_strmyhash);
     
     rb_define_global_function("load", rb_f_load, -1);
     rb_define_global_function("require", rb_f_require, 1);

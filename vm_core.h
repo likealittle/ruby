@@ -296,6 +296,7 @@ typedef struct rb_vm_struct {
     VALUE load_path;
     VALUE loaded_features;
     struct st_table *loaded_features_hash;
+    struct st_table *load_path_files_cache;
     struct st_table *loading_table;
 
     /* signal */
