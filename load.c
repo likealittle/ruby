@@ -29,6 +29,11 @@ static const char *const loadable_ext[] = {
   0
 };
 
+typedef struct pri_path {
+  int pri;
+  VALUE full_path;
+} pri_path;
+
 
 // TODO : Refactor this hash code - better to use in build strhash
 /*
@@ -244,24 +249,56 @@ loaded_feature_path_i(st_data_t v, st_data_t b, st_data_t f)
 }
 
 static int
-rb_my_feature2_p(const char *feature, int len, const char *ext, struct st_table *st, VALUE load_path)
+rb_my_feature2_p(const char *feature, int len, const char *ext,
+    struct st_table *st, VALUE load_path)
 {
+  //FIXME
+  //load_path is basically ignored here
   VALUE file, query;
   long i;
   if(ext)
     file = rb_str_append(rb_str_new(feature, len), rb_str_new(ext, strlen(ext)));
   else
     file = rb_str_new(feature, len);
-  
+
   if(st_lookup(st, file, 0))
     return 1;
-  
-  for (i = 0; i < RARRAY_LEN(load_path); ++i) 
-  {
-    VALUE p = RARRAY_PTR(load_path)[i];    
-    query = rb_file_expand_path(file, p);
-    if(st_lookup(st, query, 0)) 
-      return 1;
+
+  char *first_elem;
+  int first_elem_len = strchrnul(RSTRING_PTR(file), '/') - RSTRING_PTR(file);
+  first_elem = malloc(first_elem_len + 1);
+  memcpy(first_elem, RSTRING_PTR(file), first_elem_len);
+  *(first_elem + first_elem_len) = 0;
+
+  VALUE *paths_arr = malloc(sizeof(VALUE));
+  struct st_table *lpfc = get_load_path_files_cache();
+
+  if (st_lookup(lpfc, rb_str_new2(first_elem), paths_arr)) {
+    //TODO sort paths_arr acc to priority
+    for (i = 0; i < RARRAY_LEN(*paths_arr); ++i) 
+    {
+      pri_path *p = RARRAY_PTR(*paths_arr)[i];
+      query = rb_file_expand_path(file, p->full_path);
+      if(st_lookup(st, query, 0)) 
+      {
+        return 1;
+      }
+    }
+    return 0;
+  }
+  else {
+    //FIXME
+    //Should never come here if our lpfc and $: are in sync
+    //But if it does, do a linear trav of load_path
+    return 0;
+    for (i = 0; i < RARRAY_LEN(load_path); ++i) 
+    {
+      VALUE p = RARRAY_PTR(load_path)[i];    
+      query = rb_file_expand_path(file, p);
+      if(st_lookup(st, query, 0)) 
+        return 1;
+    }
+    return 0;
   }
   return 0;
 }
@@ -872,46 +909,37 @@ rb_f_autoload_p(VALUE obj, VALUE sym)
   return rb_mod_autoload_p(klass, sym);
 }
 
-typedef struct pri_path {
-	int pri;
-	VALUE full_path;
-} pri_path;
-
 VALUE load_path_append(VALUE ary, VALUE item) {
-    //sync the hash with this ary
-    VALUE dir_ents = dir_entries(1, &item, rb_cDir);
-    struct st_table *lpfc = get_load_path_files_cache();
+  //sync the hash with this ary
+  VALUE dir_ents = dir_entries(1, &item, rb_cDir);
+  struct st_table *lpfc = get_load_path_files_cache();
 
-    while(rb_ary_empty_p(dir_ents) != Qtrue) {
-		  VALUE ent1 = rb_ary_pop(dir_ents);
-		  if (rb_str_equal(ent1, rb_str_new2(".")) == Qtrue)
-			  continue;
-		  if (rb_str_equal(ent1, rb_str_new2("..")) == Qtrue)
-			  continue;
+  while(rb_ary_empty_p(dir_ents) != Qtrue) {
+    VALUE ent1 = rb_ary_pop(dir_ents);
+    if (rb_str_equal(ent1, rb_str_new2(".")) == Qtrue)
+      continue;
+    if (rb_str_equal(ent1, rb_str_new2("..")) == Qtrue)
+      continue;
 
-      VALUE paths_arr;
-      pri_path *cur = malloc(sizeof(pri_path));	
-      VALUE full_path = rb_str_new2("");
-      rb_str_append(full_path, item);
-      rb_str_append(full_path, rb_str_new2("/"));
-      rb_str_append(full_path, ent1);
-      cur->full_path = rb_find_file(FilePathValue(full_path));
+    VALUE *paths_arr = malloc(sizeof(VALUE));
+    pri_path *cur = malloc(sizeof(pri_path));	
+    cur->full_path = rb_file_expand_path(item, Qnil); 
 
-      if (st_lookup(lpfc, ent1, &paths_arr)) {
-          cur->pri = NUM2INT(rb_ary_length(paths_arr));
-          rb_ary_push(paths_arr, cur);
-      }
-      else {
-          paths_arr = rb_ary_new();
-          cur->pri = 0;
-          rb_ary_push(paths_arr, cur);
-          st_insert(lpfc, ent1, paths_arr);
-      }
-      /*rb_ary_push(ary, ent1);*/
-      /*rb_ary_push(ary, INT2NUM(cur->pri));*/
-      /*rb_ary_push(ary, cur->full_path);*/
+    if (st_lookup(lpfc, ent1, paths_arr)) {
+      cur->pri = NUM2INT(rb_ary_length(*paths_arr));
+      rb_ary_push(*paths_arr, cur);
     }
-    return rb_ary_push(ary, item);
+    else {
+      *paths_arr = rb_ary_new();
+      cur->pri = 0;
+      rb_ary_push(*paths_arr, cur);
+      st_insert(lpfc, ent1, *paths_arr);
+    }
+    /*rb_ary_push(ary, ent1);*/
+    /*rb_ary_push(ary, INT2NUM(cur->pri));*/
+    /*rb_ary_push(ary, cur->full_path);*/
+  }
+  return rb_ary_push(ary, item);
 }
 
 void

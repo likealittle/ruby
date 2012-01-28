@@ -91,6 +91,17 @@ ruby_debug_printf(const char *format, ...)
     va_end(ap);
 }
 
+void
+ruby_debug_printf2(const char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    vfprintf(stderr, "\nDBG:>", ap);
+    vfprintf(stderr, format, ap);
+    vfprintf(stderr, "\n", ap);
+    va_end(ap);
+}
+
 VALUE
 ruby_debug_print_value(int level, int debug_level, const char *header, VALUE obj)
 {
