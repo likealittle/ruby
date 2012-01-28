@@ -1501,7 +1501,7 @@ rb_ary_reverse_each(VALUE ary)
  *     [ 1, 2, 3, 4, 5 ].length   #=> 5
  */
 
-static VALUE
+VALUE
 rb_ary_length(VALUE ary)
 {
     long len = RARRAY_LEN(ary);
@@ -1517,7 +1517,7 @@ rb_ary_length(VALUE ary)
  *     [].empty?   #=> true
  */
 
-static VALUE
+VALUE
 rb_ary_empty_p(VALUE ary)
 {
     if (RARRAY_LEN(ary) == 0)

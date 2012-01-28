@@ -36,6 +36,8 @@ extern "C" {
 #define ID_ALLOCATOR 1
 
 /* array.c */
+VALUE rb_ary_length(VALUE ary);
+VALUE rb_ary_empty_p(VALUE ary);
 void rb_mem_clear(register VALUE*, register long);
 VALUE rb_assoc_new(VALUE, VALUE);
 VALUE rb_check_array_type(VALUE);

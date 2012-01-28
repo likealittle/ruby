@@ -137,6 +137,14 @@ get_loaded_features_hash(void)
   return ret;
 }
 
+static st_table *
+get_load_path_files_cache(void)
+{
+  struct st_table * ret;
+  ret = GET_VM()->load_path_files_cache;
+  return ret;
+}
+
 static int
 push_key(st_data_t key, st_data_t val, st_data_t ary)
 {
@@ -864,10 +872,46 @@ rb_f_autoload_p(VALUE obj, VALUE sym)
   return rb_mod_autoload_p(klass, sym);
 }
 
+typedef struct pri_path {
+	int pri;
+	VALUE full_path;
+} pri_path;
+
 VALUE load_path_append(VALUE ary, VALUE item) {
-	//sync the hash with this ary
-	VALUE dir_entries = dir_entries(1, item, rb_cDir);
-	return rb_ary_push(ary, item);
+    //sync the hash with this ary
+    VALUE dir_ents = dir_entries(1, &item, rb_cDir);
+    struct st_table *lpfc = get_load_path_files_cache();
+
+    while(rb_ary_empty_p(dir_ents) != Qtrue) {
+		  VALUE ent1 = rb_ary_pop(dir_ents);
+		  if (rb_str_equal(ent1, rb_str_new2(".")) == Qtrue)
+			  continue;
+		  if (rb_str_equal(ent1, rb_str_new2("..")) == Qtrue)
+			  continue;
+
+      VALUE paths_arr;
+      pri_path *cur = malloc(sizeof(pri_path));	
+      VALUE full_path = rb_str_new2("");
+      rb_str_append(full_path, item);
+      rb_str_append(full_path, rb_str_new2("/"));
+      rb_str_append(full_path, ent1);
+      cur->full_path = rb_find_file(FilePathValue(full_path));
+
+      if (st_lookup(lpfc, ent1, &paths_arr)) {
+          cur->pri = NUM2INT(rb_ary_length(paths_arr));
+          rb_ary_push(paths_arr, cur);
+      }
+      else {
+          paths_arr = rb_ary_new();
+          cur->pri = 0;
+          rb_ary_push(paths_arr, cur);
+          st_insert(lpfc, ent1, paths_arr);
+      }
+      /*rb_ary_push(ary, ent1);*/
+      /*rb_ary_push(ary, INT2NUM(cur->pri));*/
+      /*rb_ary_push(ary, cur->full_path);*/
+    }
+    return rb_ary_push(ary, item);
 }
 
 void
