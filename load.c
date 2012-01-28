@@ -264,21 +264,17 @@ rb_my_feature2_p(const char *feature, int len, const char *ext,
   if(st_lookup(st, file, 0))
     return 1;
 
-  char *first_elem;
   int first_elem_len = strchrnul(RSTRING_PTR(file), '/') - RSTRING_PTR(file);
-  first_elem = malloc(first_elem_len + 1);
-  memcpy(first_elem, RSTRING_PTR(file), first_elem_len);
-  *(first_elem + first_elem_len) = 0;
 
-  VALUE *paths_arr = malloc(sizeof(VALUE));
+  VALUE paths_arr;
   struct st_table *lpfc = get_load_path_files_cache();
 
-  if (st_lookup(lpfc, rb_str_new2(first_elem), paths_arr)) {
+  if (st_lookup(lpfc, rb_str_new(file, first_elem_len), &paths_arr)) {
     //TODO sort paths_arr acc to priority
     //if only appends are done to $:, this array is already sorted
-    for (i = 0; i < RARRAY_LEN(*paths_arr); ++i) 
+    for (i = 0; i < RARRAY_LEN(paths_arr); ++i) 
     {
-      pri_path *p = RARRAY_PTR(*paths_arr)[i];
+      pri_path *p = RARRAY_PTR(paths_arr)[i];
       query = rb_file_expand_path(file, p->full_path);
       if(st_lookup(st, query, 0)) 
       {
@@ -915,26 +911,29 @@ VALUE load_path_append(VALUE ary, VALUE item) {
   VALUE dir_ents = dir_entries(1, &item, rb_cDir);
   struct st_table *lpfc = get_load_path_files_cache();
 
-  while(rb_ary_empty_p(dir_ents) != Qtrue) {
-    VALUE ent1 = rb_ary_pop(dir_ents);
+  int dir_ent_size = RARRAY_LEN(dir_ents);
+  int i;
+  for(i = 0; i < dir_ent_size; i++) {
+    VALUE ent1 = RARRAY_PTR(dir_ents)[i];
+    //TODO should we skip . and ..?
     if (rb_str_equal(ent1, rb_str_new2(".")) == Qtrue)
       continue;
     if (rb_str_equal(ent1, rb_str_new2("..")) == Qtrue)
       continue;
 
-    VALUE *paths_arr = malloc(sizeof(VALUE));
+    VALUE paths_arr;
     pri_path *cur = malloc(sizeof(pri_path));	
     cur->full_path = rb_file_expand_path(item, Qnil); 
 
-    if (st_lookup(lpfc, ent1, paths_arr)) {
-      cur->pri = NUM2INT(rb_ary_length(*paths_arr));
-      rb_ary_push(*paths_arr, cur);
+    if (st_lookup(lpfc, ent1, &paths_arr)) {
+      cur->pri = RARRAY_LEN(paths_arr);
+      rb_ary_push(paths_arr, cur);
     }
     else {
-      *paths_arr = rb_ary_new();
+      paths_arr = rb_ary_new();
       cur->pri = 0;
-      rb_ary_push(*paths_arr, cur);
-      st_insert(lpfc, ent1, *paths_arr);
+      rb_ary_push(paths_arr, cur);
+      st_insert(lpfc, ent1, paths_arr);
     }
     /*rb_ary_push(ary, ent1);*/
     /*rb_ary_push(ary, INT2NUM(cur->pri));*/
