@@ -36,6 +36,8 @@ struct file_tree_element{
 
 typedef struct file_tree_element file_tree_node;
 
+file_tree_node *root;
+
 file_tree_node *get_new_node( file_tree_node *pointer){
     pointer = ( file_tree_node *) ( malloc( sizeof(file_tree_node) ) ); 
     pointer -> name = NULL ;
@@ -1018,6 +1020,16 @@ rb_f_autoload_p(VALUE obj, VALUE sym)
     return rb_mod_autoload_p(klass, sym);
 }
 
+
+/* This gets triggered everytime a $: << operation happens */
+VALUE append_load_path(VALUE ary, VALUE path)
+{
+    print_str_ary(ary);
+    printf("Adding the path : %s\n" , StringValuePtr(path)); 
+    VALUE ret = rb_ary_push(ary, path);
+    print_str_ary(ary);
+    return ret;
+}
 void
 Init_load()
 {
@@ -1037,6 +1049,7 @@ Init_load()
 
     rb_define_virtual_variable("$\"", get_loaded_features, 0);
     rb_define_virtual_variable("$LOADED_FEATURES", get_loaded_features, 0);
+    rb_define_singleton_method(vm->load_path,"<<",append_load_path,1);
     vm->loaded_features = rb_ary_new();
 
     //printf("Loaded variables = " ) ; 
