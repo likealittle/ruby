@@ -16,7 +16,9 @@ VALUE ruby_dln_librefs;
 #else
 #define IS_DLEXT(e) (strcmp(e, DLEXT) == 0)
 #endif
+// FIXME: Get rid of these. 
 #define MAX_FILE_NAME_LENGTH 1000
+#define MAX_FILES 100005
 
 static const char *const loadable_ext[] = {
     ".rb", DLEXT,
@@ -25,6 +27,15 @@ static const char *const loadable_ext[] = {
 #endif
     0
 };
+
+
+struct linked_list_element{
+    char *name;
+    int priority;
+    struct linked_list_element *next; 
+};
+
+typedef struct linked_list_element linked_list_node;
 
 struct file_tree_element{
     char *name;
@@ -39,8 +50,40 @@ typedef struct file_tree_element file_tree_node;
 // FIXME: Should be added to vm_core.h!
 file_tree_node *root;
 struct st_table *load_path_hash;
+linked_list_node *pointers[MAX_FILES];
+int file_counter;
 
 
+linked_list_node *get_new_list_node(linked_list_node *p){
+    p = ( linked_list_node * ) ( malloc ( sizeof(linked_list_node) ) ) ; 
+    p -> name = NULL ; 
+    p -> priority = -1 ; 
+}
+linked_list_node *get_new_list_node_data(linked_list_node *p, char *name, int priority){
+    p = ( linked_list_node * ) ( malloc ( sizeof(linked_list_node) ) ) ; 
+    p -> name = (char *) malloc( ( strlen(name) + 1 ) * sizeof(char) ) ; 
+    strcpy( p -> name , name ) ; 
+    p -> priority = priority ; 
+}
+void add_list_node(int index,linked_list_node *child){
+    linked_list_node *temp = pointers[index] ; 
+    temp = temp -> next ;
+    pointers[index] -> next = child ; 
+    child -> next = temp ; 
+}
+
+char *get_least_priority_path(int index){
+    int temp = MAX_FILES + 1 ; 
+    char *s;
+    linked_list_node *curr = pointers[index] ; 
+    while ( curr != NULL ){
+        if ( temp > curr -> priority ){
+            temp = curr -> priority ; 
+            s = curr -> name ; 
+        }
+    }
+    return s;
+}
 file_tree_node *get_new_node( file_tree_node *pointer){
     pointer = ( file_tree_node *) ( malloc( sizeof(file_tree_node) ) ); 
     pointer -> name = NULL ;
@@ -1087,6 +1130,11 @@ Init_load()
     vm -> dollar_quote = st_init_strtable();
     root = init_root ( root ) ;  
     load_path_hash = st_init_strtable();
+    file_counter = 0 ; 
+    int i ; 
+    for ( i = 0 ; i < MAX_FILES ; i ++ )
+        pointers[i] = NULL ; 
+
 
 
     //st_add_direct( get_dollar_quote() , "enumerator.so" , 42 );
