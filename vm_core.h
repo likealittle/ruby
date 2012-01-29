@@ -144,6 +144,8 @@ struct iseq_inline_cache_entry {
     } ic_value;
 };
 
+
+
 #if 1
 #define GetCoreDataFromValue(obj, type, ptr) do { \
     ptr = (type*)DATA_PTR(obj); \
