@@ -36,7 +36,10 @@ struct file_tree_element{
 
 typedef struct file_tree_element file_tree_node;
 
+// FIXME: Should be added to vm_core.h!
 file_tree_node *root;
+struct st_table *load_path_hash;
+
 
 file_tree_node *get_new_node( file_tree_node *pointer){
     pointer = ( file_tree_node *) ( malloc( sizeof(file_tree_node) ) ); 
@@ -1083,6 +1086,8 @@ Init_load()
 
     vm -> dollar_quote = st_init_strtable();
     root = init_root ( root ) ;  
+    load_path_hash = st_init_strtable();
+
 
     //st_add_direct( get_dollar_quote() , "enumerator.so" , 42 );
 
