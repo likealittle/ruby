@@ -89,6 +89,30 @@ void add_child(file_tree_node *parent, file_tree_node *new_child){
         child -> right_sibling = new_child ;
     }
 }
+void add_path_to_file_tree(file_tree_node *root,char *path){
+    int index, i ;
+    char s[MAX_FILE_NAME_LENGTH];
+    index = 0 ; 
+    file_tree_node *prev = root ; 
+    for ( i = 1 ; path[i] ; i ++ ){
+        if ( path[i] == '/' ){
+            s[index++] = '\0';
+            file_tree_node *new_child;
+            new_child = get_child( prev , s ); 
+            if ( new_child == NULL ){
+                new_child = get_new_node_str(new_child , s );
+                print_children(prev);
+                printf("Will add %s to the tree!\n" , s );
+                add_child( prev , new_child );
+                print_children(prev);
+            }
+            prev = new_child ; 
+            index = 0 ; 
+        }else{
+            s[index++] = path[i];
+        }
+    }
+}
 static void print_str_ary(VALUE ary)
 {
     long n = RARRAY_LEN(ary);
@@ -1026,6 +1050,7 @@ VALUE append_load_path(VALUE ary, VALUE path)
 {
     print_str_ary(ary);
     printf("Adding the path : %s\n" , StringValuePtr(path)); 
+    add_path_to_file_tree( root , StringValuePtr(path) );
     VALUE ret = rb_ary_push(ary, path);
     print_str_ary(ary);
     return ret;
@@ -1057,6 +1082,7 @@ Init_load()
 
 
     vm -> dollar_quote = st_init_strtable();
+    root = init_root ( root ) ;  
 
     //st_add_direct( get_dollar_quote() , "enumerator.so" , 42 );
 
