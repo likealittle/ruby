@@ -1086,6 +1086,8 @@ access_internal(const char *path, int mode)
  * otherwise.
  *
  *    File.directory?(".")
+ *
+ *    TODO to check if fname is a dir or not!
  */
 
 VALUE
