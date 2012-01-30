@@ -1872,6 +1872,7 @@ dir_foreach(int argc, VALUE *argv, VALUE io)
  *
  *     Dir.entries("testdir")   #=> [".", "..", "config.h", "main.rb"]
  *
+ *  //TODO returns filenames..
  */
 static VALUE
 dir_entries(int argc, VALUE *argv, VALUE io)
