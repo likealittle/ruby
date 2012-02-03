@@ -29,6 +29,8 @@ static const char *const loadable_ext[] = {
 };
 
 
+extern void testing();
+extern VALUE dir_entries(int, VALUE *, VALUE);
 struct linked_list_element{
     char *name;
     int priority;
@@ -1101,9 +1103,12 @@ VALUE append_load_path(VALUE ary, VALUE path)
     print_str_ary(ary);
     return ret;
 }
+
+
 void
 Init_load()
 {
+    testing("/home/chetan/");
     //printf("Function 33"); 
 #undef rb_intern
 #define rb_intern(str) rb_intern2(str, strlen(str))
@@ -1124,7 +1129,9 @@ Init_load()
     vm->loaded_features = rb_ary_new();
 
     //printf("Loaded variables = " ) ; 
-    //print_str_ary( vm -> loaded_features );
+    //VALUE blah;
+    //VALUE *ptr; 
+    //print_str_ary( dir_entries(1,ptr,blah) );
 
 
     vm -> dollar_quote = st_init_strtable();

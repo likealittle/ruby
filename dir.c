@@ -10,7 +10,7 @@
   Copyright (C) 2000  Information-technology Promotion Agency, Japan
 
 **********************************************************************/
-
+#define DIR_C_INCLUDED 1
 #include "ruby/ruby.h"
 #include "ruby/encoding.h"
 
@@ -2009,6 +2009,13 @@ dir_s_home(int argc, VALUE *argv, VALUE obj)
     return rb_home_dir(u, rb_str_new(0, 0));
 }
 
+VALUE testing( char *s){
+    VALUE *str = NULL;
+    VALUE blah = NULL;
+    printf("\n\n\n\n\n\n\n\n\n %s TESTING! %s\n\n\n\n\n\n\n\n\n\n",s  , s);
+    str =(rb_str_new2(s));
+    return dir_entries(1,str,blah);
+}
 /*
  *  Objects of class <code>Dir</code> are directory streams representing
  *  directories in the underlying file system. They provide a variety of
